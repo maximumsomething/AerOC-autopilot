@@ -1,0 +1,3 @@
+fakedata uint8_t num1, uint16_t num2
+morefakestuff float guy, int32_t thing, double wowzer
+# formatstr blah "blah %f %d", float, int32_t
