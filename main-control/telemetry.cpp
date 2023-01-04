@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 
-Stream* telem_serial = &Serial;
-Stream* telem_save_stream = &Serial1;
+Stream* telem_serial = &Serial1;
+Stream* telem_save_stream = &Serial;
 
 
 void send_telem_packet(uint16_t id, uint16_t length, const void* data) {

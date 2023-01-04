@@ -15,7 +15,12 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	FILE* serialIn = fopen(argv[1], "r");
+	const char* filename = argv[1];
+
+	// todo: this the proper way, with termios and cfmakeraw
+	system(("stty -F '" + std::string(filename) + "' raw").c_str());
+
+	FILE* serialIn = fopen(filename, "r");
 	if (serialIn == nullptr) {
 		perror("Could not open serialIn file");
 		return 1;
@@ -40,8 +45,8 @@ int main(int argc, char** argv) {
 
 		if ((header.id != telem_id_special_strmessage)
 			&& header.packetLength != expectedLength(header.id)) {
-			std::cerr << "Error: packet length mismatch: header contains "
-			<< header.packetLength << "; expected" << expectedLength(header.id) << std::endl;;
+			std::cerr << "Error: packet length mismatch: header for " << header.id << " contains "
+			<< header.packetLength << "; expected " << expectedLength(header.id) << std::endl;;
 			fseek(serialIn, header.packetLength, SEEK_CUR);
 			continue;
 		}
