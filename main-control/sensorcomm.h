@@ -1,4 +1,4 @@
-
+#pragma once
 void setupAllComms();
 
 void telemSerialSetup();
@@ -9,3 +9,10 @@ void imuSetup();
 void i2cScan();
 
 void printImuData();
+
+struct RawImuData {
+  float accelx, accely, accelz;
+  float gyrox, gyroy, gyroz;
+};
+
+RawImuData readImu();

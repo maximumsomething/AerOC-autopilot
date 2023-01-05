@@ -30,7 +30,7 @@ reciever = ('void recievePacket(uint16_t id, uint16_t length, void* data) {\n'
 srclines = srcfile.readlines()
 for line in srclines:
 	line = line.strip()
-	if line[0] == '#':
+	if (not line) or line[0] == '#':
 		continue
 	nameanddefs = line.split(maxsplit=1)
 	name = nameanddefs[0]
@@ -60,7 +60,7 @@ for line in srclines:
 	senders += ((f'void telem_{name}({defs})' ' {\n'
 		   f'\tstruct telem_data_{name} data = {{ {commaDefnames} }};\n'
 		   f'\tsend_telem_packet(telem_id_{name}, sizeof(data), (void *)&data);\n\n')
-#			+ streamPrint
+			+ streamPrint
 			+ '\n}\n')
 	sendersH += f'void telem_{name}({defs});\n'
 
