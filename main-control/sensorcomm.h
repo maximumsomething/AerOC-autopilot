@@ -15,4 +15,5 @@ struct RawImuData {
   float gyrox, gyroy, gyroz;
 };
 
-RawImuData readImu();
+//RawImuData readImu();
+void readImu();

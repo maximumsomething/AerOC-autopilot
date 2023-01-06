@@ -14,19 +14,10 @@ void loop() {
   delay(1000);*/
   //printImuData();
 
+
   int startTime = micros();
 
-  RawImuData data = readImu();
-  DeadReckoner::newData(data);
-  //Serial.println("read");
-  ++counter;
-
-  if (counter == 100) {
-    counter = 0;
-    //Serial.println("thing");
-    DeadReckoner::printData();
-    printImuData();
-  }
+  readImu();
 
   int endTime = micros();
   // make 200hz loop
