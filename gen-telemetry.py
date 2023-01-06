@@ -55,7 +55,7 @@ for line in srclines:
 		printItems += [f'"{defname}="', defname, '", "']
 
 
-	streamPrint = "\n".join(list(map(lambda x: "\ttelem_save_stream->print("+x+");", printItems)))
+	streamPrint = "\n".join(list(map(lambda x: "\ttelem_save_stream->print("+x+");", printItems + ['"\\n"'])))
 
 	senders += ((f'void telem_{name}({defs})' ' {\n'
 		   f'\tstruct telem_data_{name} data = {{ {commaDefnames} }};\n'
