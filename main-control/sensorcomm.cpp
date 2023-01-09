@@ -146,8 +146,214 @@ RawImuData getImuData() {
 	};
 }
 
-#include <Adafruit_BMP3XX.h>
+//#include <Adafruit_BMP3XX.h>
+#include <bmp3_defs.h>
+#include <bmp3.h>
 
+struct bmp3_dev bmpdev;
+struct bmp3_settings bmpsettings = { 0 };
+
+
+namespace BmpFuncs {
+
+	TwoWire* i2c_dev;
+	uint8_t i2c_address;
+
+	int8_t i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t len,
+                void *intf_ptr) {
+		//Serial.print("I2C read address 0x"); Serial.print(reg_addr, HEX);
+		//Serial.print(" len "); Serial.println(len, HEX);
+
+		//if (!i2c_dev->write_then_read(&reg_addr, 1, reg_data, len))
+		//	return 1;
+
+		i2c_dev->beginTransmission(i2c_address);
+		unsigned result = i2c_dev->write(&reg_addr, 1);
+		if (result != 1) return BMP3_E_COMM_FAIL;
+		result = i2c_dev->endTransmission(false);
+		//Serial.printf("writed, result=%i\n", result);
+		if (result != 0) return BMP3_E_COMM_FAIL;
+
+		result = i2c_dev->requestFrom(i2c_address, len, true);
+		if (result != len) return BMP3_E_COMM_FAIL;
+		//Serial.println("requested");
+
+		for (unsigned i = 0; i < len; ++i) {
+			reg_data[i] = i2c_dev->read();
+		}
+
+		return BMP3_OK;
+	}
+
+	int8_t i2c_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t len,
+			void *intf_ptr) {
+		// Serial.print("I2C write address 0x"); Serial.print(reg_addr, HEX);
+		// Serial.print(" len "); Serial.println(len, HEX);
+
+		//if (!i2c_dev->write((uint8_t *)reg_data, len, true, &reg_addr, 1))
+		//	return 1;
+		i2c_dev->beginTransmission(i2c_address);
+		unsigned result = i2c_dev->write(&reg_addr, 1);
+		if (result != 1) return BMP3_E_COMM_FAIL;
+		result = i2c_dev->write(reg_data, len);
+		if (result != len) return BMP3_E_COMM_FAIL;
+		result = i2c_dev->endTransmission();
+		if (result != 0) return BMP3_E_COMM_FAIL;
+
+		return BMP3_OK;
+	}
+
+	void delay_usec(uint32_t us, void *intf_ptr) { delayMicroseconds(us); }
+}
+
+
+void bmp3_check_rslt(const char api_name[], int8_t rslt)
+{
+    switch (rslt)
+    {
+        case BMP3_OK:
+
+            /* Do nothing */
+            break;
+        case BMP3_E_NULL_PTR:
+            Serial.printf("API [%s] Error [%d] : Null pointer\r\n", api_name, rslt);
+            break;
+        case BMP3_E_COMM_FAIL:
+            Serial.printf("API [%s] Error [%d] : Communication failure\r\n", api_name, rslt);
+            break;
+        case BMP3_E_INVALID_LEN:
+            Serial.printf("API [%s] Error [%d] : Incorrect length parameter\r\n", api_name, rslt);
+            break;
+        case BMP3_E_DEV_NOT_FOUND:
+            Serial.printf("API [%s] Error [%d] : Device not found\r\n", api_name, rslt);
+            break;
+        case BMP3_E_CONFIGURATION_ERR:
+            Serial.printf("API [%s] Error [%d] : Configuration Error\r\n", api_name, rslt);
+            break;
+        case BMP3_W_SENSOR_NOT_ENABLED:
+            Serial.printf("API [%s] Error [%d] : Warning when Sensor not enabled\r\n", api_name, rslt);
+            break;
+        case BMP3_W_INVALID_FIFO_REQ_FRAME_CNT:
+            Serial.printf("API [%s] Error [%d] : Warning when Fifo watermark level is not in limit\r\n", api_name, rslt);
+            break;
+        default:
+            Serial.printf("API [%s] Error [%d] : Unknown error code\r\n", api_name, rslt);
+            break;
+    }
+}
+
+BMP3_INTF_RET_TYPE bmp3_interface_init(struct bmp3_dev *bmp3, uint8_t intf) {
+    int8_t rslt = BMP3_OK;
+
+    if (bmp3 != NULL) {
+
+        /* Bus configuration : I2C */
+        if (intf == BMP3_I2C_INTF) {
+            Serial.printf("I2C Interface\n");
+            //BmpFuncs::i2c_address = BMP3_ADDR_I2C_PRIM;
+			BmpFuncs::i2c_address = 0x77;
+            bmp3->read = &BmpFuncs::i2c_read;
+            bmp3->write = &BmpFuncs::i2c_write;
+            bmp3->intf = BMP3_I2C_INTF;
+
+			/*
+            // SDO pin is made low
+            (void)coines_set_pin_config(COINES_SHUTTLE_PIN_SDO, COINES_PIN_DIRECTION_OUT, COINES_PIN_VALUE_LOW);
+            (void)coines_config_i2c_bus(COINES_I2C_BUS_0, COINES_I2C_STANDARD_MODE);*/
+        }
+        // else SPI; we not doing SPI here
+
+        bmp3->delay_us = &BmpFuncs::delay_usec;
+        bmp3->intf_ptr = &BmpFuncs::i2c_address;
+    }
+    else {
+        rslt = BMP3_E_NULL_PTR;
+    }
+
+    return rslt;
+}
+
+void altimeterSetup() {
+	Serial.println("Initializing BMP3XX...");
+
+    /* Interface reference is given as a parameter
+     *         For I2C : BMP3_I2C_INTF
+     *         For SPI : BMP3_SPI_INTF
+     */
+	BmpFuncs::i2c_dev = &Wire1;
+
+    int8_t rslt = bmp3_interface_init(&bmpdev, BMP3_I2C_INTF);
+    bmp3_check_rslt("bmp3_interface_init", rslt);
+
+    rslt = bmp3_init(&bmpdev);
+    bmp3_check_rslt("bmp3_init", rslt);
+
+	Serial.println("init device");
+
+    bmpsettings.int_settings.drdy_en = BMP3_ENABLE;
+    bmpsettings.press_en = BMP3_ENABLE;
+    bmpsettings.temp_en = BMP3_ENABLE;
+
+    bmpsettings.odr_filter.press_os = BMP3_OVERSAMPLING_16X;
+    bmpsettings.odr_filter.temp_os = BMP3_OVERSAMPLING_2X;
+    bmpsettings.odr_filter.odr = BMP3_ODR_25_HZ;
+	bmpsettings.odr_filter.iir_filter = BMP3_IIR_FILTER_COEFF_7;
+
+    uint16_t settings_sel = BMP3_SEL_PRESS_EN | BMP3_SEL_TEMP_EN | BMP3_SEL_PRESS_OS | BMP3_SEL_TEMP_OS | BMP3_SEL_ODR |
+                   BMP3_SEL_DRDY_EN;
+
+    rslt = bmp3_set_sensor_settings(settings_sel, &bmpsettings, &bmpdev);
+    bmp3_check_rslt("bmp3_set_sensor_settings", rslt);
+
+    bmpsettings.op_mode = BMP3_MODE_NORMAL;
+    rslt = bmp3_set_op_mode(&bmpsettings, &bmpdev);
+    bmp3_check_rslt("bmp3_set_op_mode", rslt);
+
+	Serial.println("Barometer set up");
+
+}
+void readAltimeter() {
+    struct bmp3_status status = { { 0 } };
+	struct bmp3_data data = { 0 };
+	int8_t rslt = bmp3_get_status(&status, &bmpdev);
+	bmp3_check_rslt("bmp3_get_status", rslt);
+
+	/* Read temperature and pressure data iteratively based on data ready interrupt */
+	if ((rslt == BMP3_OK) && (status.intr.drdy == BMP3_ENABLE)) {
+		/*
+			* First parameter indicates the type of data to be read
+			* BMP3_PRESS_TEMP : To read pressure and temperature data
+			* BMP3_TEMP       : To read only temperature data
+			* BMP3_PRESS      : To read only pressure data
+			*/
+		rslt = bmp3_get_sensor_data(BMP3_PRESS_TEMP, &data, &bmpdev);
+		bmp3_check_rslt("bmp3_get_sensor_data", rslt);
+
+		/* NOTE : Read status register again to clear data ready interrupt status */
+		rslt = bmp3_get_status(&status, &bmpdev);
+		bmp3_check_rslt("bmp3_get_status", rslt);
+
+		float atmospheric = data.pressure / 100.0F;
+		float altitude = 44330.0 * (1.0 - pow(atmospheric / 1013.25, 0.1903));
+
+		telem_pressureTemp390(data.pressure / 100.0, data.temperature, altitude);
+
+		/*
+		#ifdef BMP3_FLOAT_COMPENSATION
+		printf("Data[%d]  T: %.2f deg C, P: %.2f Pa\n", loop, (data.temperature), (data.pressure));
+		#else
+		printf("Data[%d]  T: %ld deg C, P: %lu Pa\n", loop, (long int)(int32_t)(data.temperature / 100),
+				(long unsigned int)(uint32_t)(data.pressure / 100));
+		#endif
+
+		loop = loop + 1;*/
+	}
+	else {
+		Serial.print("Barometer not ready\n");
+	}
+}
+
+/*
 // override of Adafruit_BMP3XX::performReading() that avoids updating settings
 // unnecessarily, and so is faster
 
@@ -156,40 +362,53 @@ public:
 	bool performReading();
 	bool updateSettings();
 };
+extern Adafruit_I2CDevice *g_i2c_dev; ///< Global I2C interface pointer
+
 
 bool opt_BMP3XX::performReading(void) {
-	if (the_sensor.settings.op_mode != BMP3_MODE_NORMAL) {
-		Serial.print("bad BMP3 mode");
+	g_i2c_dev = i2c_dev;
+
+	uint8_t op_mode;
+	int op_mode_get_result = bmp3_get_op_mode(&op_mode, &the_sensor);
+	if (op_mode != BMP3_MODE_NORMAL) {
+		Serial.print("bad BMP3 mode of ");
+		Serial.print(op_mode, HEX);
+		Serial.print(". result code: ");
+		Serial.println(op_mode_get_result);
+		// set the mode???
+		the_sensor.settings.op_mode = BMP3_MODE_NORMAL;
+		bmp3_set_op_mode(&the_sensor);
 		return false;
 	}
 
-	/* Variable used to store the compensated data */
+	// Variable used to store the compensated data
 	struct bmp3_data data;
 
-	/* Temperature and Pressure data are read and stored in the bmp3_data instance
-	 */
+	// Temperature and Pressure data are read and stored in the bmp3_data instance
 
 	uint8_t sensor_comp = BMP3_TEMP | BMP3_PRESS;
 	bool rslt = bmp3_get_sensor_data(sensor_comp, &data, &the_sensor);
 	if (rslt != BMP3_OK)
 		return false;
 
-	/* Save the temperature and pressure data */
+	// Save the temperature and pressure data
 	temperature = data.temperature;
 	pressure = data.pressure;
 
 	return true;
 }
-
 bool opt_BMP3XX::updateSettings() {
+	g_i2c_dev = i2c_dev;
 	//Adafruit_BMP3XX::performReading();
+	//delay(100);
+
 	int8_t rslt;
-	/* Used to select the settings user needs to change */
+	// Used to select the settings user needs to change
 	uint16_t settings_sel = 0;
-	/* Variable used to select the sensor component */
+	// Variable used to select the sensor component
 	uint8_t sensor_comp = 0;
 
-	/* Select the pressure and temperature sensor to be enabled */
+	// Select the pressure and temperature sensor to be enabled
 	the_sensor.settings.temp_en = BMP3_ENABLE;
 	settings_sel |= BMP3_SEL_TEMP_EN;
 	sensor_comp |= BMP3_TEMP;
@@ -215,7 +434,7 @@ bool opt_BMP3XX::updateSettings() {
 	// set interrupt to data ready
 	// settings_sel |= BMP3_DRDY_EN_SEL | BMP3_LEVEL_SEL | BMP3_LATCH_SEL;
 
-	/* Set the desired sensor configuration */
+	// Set the desired sensor configuration
 #ifdef BMP3XX_DEBUG
 	Serial.println("Setting sensor settings");
 #endif
@@ -224,7 +443,7 @@ bool opt_BMP3XX::updateSettings() {
 	if (rslt != BMP3_OK)
 		return false;
 
-	/* Set the power mode */
+	// Set the power mode
 	the_sensor.settings.op_mode = BMP3_MODE_NORMAL;
 #ifdef BMP3XX_DEBUG
 	Serial.println(F("Setting power mode"));
@@ -270,18 +489,18 @@ void readAltimeter() {
 
   telem_pressureTemp390(bmp.pressure / 100.0, bmp.temperature, altitude);
 
-  /*Serial.print("Temp = ");
-  Serial.print(bmp.temperature);
-  Serial.print(" *C. ");
+  //Serial.print("Temp = ");
+  //Serial.print(bmp.temperature);
+  //Serial.print(" *C. ");
 
-  Serial.print("Pressure = ");
-  Serial.print(bmp.pressure / 100.0);
-  Serial.println(" hPa. ");*/
+  //Serial.print("Pressure = ");
+  //Serial.print(bmp.pressure / 100.0);
+  //Serial.println(" hPa. ");
 
   //Serial.print("Approx. Altitude = ");
   //Serial.print(bmp.readAltitude(SEALEVELPRESSURE_HPA));
   //Serial.println(" m");
-}
+}*/
 
 /*
  # include <Adafruit_BMP280.h>                                          *
