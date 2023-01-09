@@ -3,4 +3,5 @@ fakedata uint8_t num1, uint16_t num2
 # formatstr blah "blah %f %d", float, int32_t
 
 pose float downX, float downY, float downZ, float velX, float velY, float velZ, float posX, float posY, float posZ
+pressureTemp390 float pressurehPa, float tempC, float altitudeM
 

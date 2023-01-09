@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string>
+#include <unistd.h>
 
 // defined in autogen.cpp
 void recievePacket(uint16_t id, uint16_t length, void* data);
@@ -54,7 +55,15 @@ int main(int argc, char** argv) {
 		partsRead = fread(buf, header.packetLength, 1, serialIn);
 		if (partsRead < 1) {
 			std::cerr << "Could not read packet" << std::endl;
-			break;
+			//break;
+			//usleep(10000);
+			fclose(serialIn);
+			serialIn = fopen(filename, "r");
+			if (serialIn == nullptr) {
+				perror("Could not open serialIn file");
+				return 1;
+			}
+			continue;
 		}
 		if (header.id == telem_id_special_strmessage) {
 			std::string msg(buf, header.packetLength);

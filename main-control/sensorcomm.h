@@ -11,10 +11,17 @@ void i2cScan();
 void printImuData();
 
 struct RawImuData {
-  float accelx, accely, accelz; // acceleration in g
-  float gyrox, gyroy, gyroz; // speed in rad/s/
-  float qw, qx, qy, qz; // DMP calculated rotation quaternion
+	float accelx, accely, accelz; // acceleration in g
+	float gyrox, gyroy, gyroz; // speed in rad/s/
+	float qw, qx, qy, qz; // DMP calculated rotation quaternion
 };
 
 RawImuData getImuData();
 void readImu();
+
+void altimeterSetup();
+void readAltimeter();
+
+struct TnP {
+
+};
