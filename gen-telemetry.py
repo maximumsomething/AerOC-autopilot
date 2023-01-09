@@ -59,7 +59,8 @@ for line in srclines:
 
 	senders += ((f'void telem_{name}({defs})' ' {\n'
 		   f'\tstruct telem_data_{name} data = {{ {commaDefnames} }};\n'
-		   f'\tsend_telem_packet(telem_id_{name}, sizeof(data), (void *)&data);\n\n')
+		   f'\tsend_telem_packet(telem_id_{name}, sizeof(data), (void *)&data);\n\n'
+		   'print_telem_timestamp();\n')
 			+ streamPrint
 			+ '\n}\n')
 	sendersH += f'void telem_{name}({defs});\n'

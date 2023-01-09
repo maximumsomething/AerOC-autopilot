@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <string>
 #include <unistd.h>
+#include <chrono>
+#include <iomanip>
 
 // defined in autogen.cpp
 void recievePacket(uint16_t id, uint16_t length, void* data);
@@ -70,6 +72,19 @@ int main(int argc, char** argv) {
 			// todo: escape string
 			std::cout << "strmessage: " << msg << std::endl;
 		}
+
+		// print timestamp
+		/*time_t now = time(nullptr);
+		struct tm* local = localtime(&now);
+		l*/
+		auto now = std::chrono::system_clock::now();
+		auto time = std::chrono::system_clock::to_time_t(now);
+		auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) -
+				std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch());
+
+		std::cout << std::put_time(std::localtime(&time), "%H:%M:%S.");
+		std::cout << ms.count() << " ";
+
 
 		recievePacket(header.id, header.packetLength, buf);
 	}
