@@ -35,23 +35,43 @@ namespace DeadReckoner {
 	Eigen::Vector3f vel = Eigen::Vector3f::Zero(); //velocity
 	Eigen::Vector3f pos = Eigen::Vector3f::Zero(); //position
 
+	constexpr int samplesToCalibrate = 200; // one second
+	int stableSamples = 0;
+
+	// check whether acceleration and rotation is stable this sample
+	bool checkStability(const RawImuData& data) {
+		constexpr float maxDps = 0.5;
+		constexpr float maxGDiff = 0.03;
+		bool gyroStable = fabs(data.gyrox) < maxDps && fabs(data.gyroy) < maxDps && fabs(data.gyroz) < maxDps;
+		if (!gyroStable) return false;
+		// check magnitude of acceleration is 1g
+		float accel = Eigen::Vector3f(data.accelx, data.accely, data.accelz).norm();
+		//Serial.printf("accel: %f\n", accel);
+		return fabs(accel - 1) < maxGDiff;
+	}
+
 	void newData(RawImuData data) {
 		rawAttitude = Eigen::Quaternion<float>(data.qw, data.qx, data.qy, data.qz);
 		calibratedAttitude = rawAttitude*referenceRotation.inverse();
 		accel[0] = data.accelx;
 		accel[1] = data.accely;
 		accel[2] = data.accelz;
+
+		if (checkStability(data)) {
+			stableSamples++;
+		}
+		else stableSamples = 0;
+		if (stableSamples >= samplesToCalibrate) {
+			//Serial.println("Stable! calibrating");
+			//calibrateDown();
+		}
 	}
 
 	void printData() {	
 		telem_pose(accel[0], accel[1], accel[2], pitch, roll, bearing);
 	}
 
-	int hasBeenStableSince = 0;
-	// check whether acceleration and rotation is stable this tick
-	bool checkStability() {
 
-	}
 
 	// maintains a ring buffer and a rolling average of acceleration data from the past second.
 	void updateAverages() {
