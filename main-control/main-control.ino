@@ -34,8 +34,8 @@ void loop() {
 	if (startTime > lastPrintTime + 200000) {
 		DeadReckoner::printData();
 		lastPrintTime = startTime;
-		/*Serial.println("ax=" +  String(data.accelx) + " ay=" + String(data.accely) + " az=" + String(data.accelz));
-		Serial.println("gx=" +  String(data.gyrox) + " gy=" + String(data.gyroy) + " gz=" + String(data.gyroz));*/
+		/*Serial.println("ax=" +  String(imuData.accelx) + " ay=" + String(imuData.accely) + " az=" + String(imuData.accelz));
+		Serial.println("gx=" +  String(imuData.gyrox) + " gy=" + String(imuData.gyroy) + " gz=" + String(imuData.gyroz));*/
 	}
 	// Do this at 25 Hz
 	if (loopCounter % 8 == 0) {
