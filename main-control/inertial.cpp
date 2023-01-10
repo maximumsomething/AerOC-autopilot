@@ -5,7 +5,19 @@
 #include "ringbuffer.h"
 #include <eigen.h>
 #include <Eigen/Geometry>
-#include <arduino.h>
+#include <Arduino.h>
+
+
+/*
+ * Terminology:
+ * Reference rotation: a quaternion equaling what the raw attitude would be when pointed horizontally and "north".
+ * Raw attitude: The quaternion directly from the sensor.
+ * Calibrated attitude: The raw attitude minus (i.e. multiplied by the inverse of) the reference rotation.
+ * "down": 3D unit vector pointing towards the center of the earth.
+ * horizontal plane: The plane orthogonal to down.
+ * Pitch & roll: Derived by the offset of the current attitude from the horizontal plane.
+ * Bearing: an angle from north on the horizontal plane.
+ */
 
 namespace DeadReckoner {
 
@@ -33,7 +45,19 @@ namespace DeadReckoner {
 		telem_pose(currentDown.x(), currentDown.y(), currentDown.z(), pitch, roll, bearing);
 	}
 
-	void calibrateDown(); //TODO: Build funtion to figure out which way is down
+	int hasBeenStableSince = 0;
+	// check whether acceleration and rotation is stable this tick
+	bool checkStability() {
+
+	}
+
+	// maintains a ring buffer and a rolling average of acceleration data from the past second.
+	void updateAverages() {
+
+	}
+
+	// called when we've been stable enough to calibrate
+	void calibrateDown(); //TODO: Build function to figure out which way is down
 
 	float getRoll() {return roll;}
 	float getPitch() {return pitch;}
