@@ -1,6 +1,7 @@
 #include "telemetry.h"
 #include "sensorcomm.h"
 #include "inertial.h"
+#include "ringbuffer.h"
 
 void setup() {
 	setupAllComms();

@@ -1,4 +1,5 @@
-#pragma once    
+#pragma once 
+#include <memory>   
     template <class T>
     class circular_buffer {
     public:
@@ -8,8 +9,6 @@
 	{}
 
 	void put(T item){
-        std::lock_guard<std::mutex> lock(mutex_);
-
         buf_[head_] = item;
 
         if(full_){
@@ -34,16 +33,14 @@
     }
 
 	void reset(){
-        std::lock_guard<std::mutex> lock(mutex_);
         head_ = tail_;
         full_ = false;
     }
 
-	bool empty() return (!full_ && (head_ == tail_));
+	bool empty() {return (!full_ && (head_ == tail_));}
 
-	bool full() return full_;
+	bool full() {return full_;}
 
-	size_t capacity() max_size_;
     size_t capacity() const {
             return max_size_;
         }
