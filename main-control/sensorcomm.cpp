@@ -317,8 +317,12 @@ void readAltimeter() {
 	int8_t rslt = bmp3_get_status(&status, &bmpdev);
 	bmp3_check_rslt("bmp3_get_status", rslt);
 
+	if (rslt != BMP3_OK) {
+		// reset barometer (it sometimes dies for some reason???)
+		altimeterSetup();
+	}
 	/* Read temperature and pressure data iteratively based on data ready interrupt */
-	if ((rslt == BMP3_OK) && (status.intr.drdy == BMP3_ENABLE)) {
+	else if ((rslt == BMP3_OK) && (status.intr.drdy == BMP3_ENABLE)) {
 		/*
 			* First parameter indicates the type of data to be read
 			* BMP3_PRESS_TEMP : To read pressure and temperature data
