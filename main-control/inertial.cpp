@@ -5,6 +5,7 @@
 #include "ringbuffer.h"
 #include <eigen.h>
 #include <Eigen/Geometry>
+#include <arduino.h>
 
 namespace DeadReckoner {
 
@@ -15,21 +16,21 @@ namespace DeadReckoner {
 	float pitch = 0; //0 is level, positive is upwards, negative is downwards
 	float bearing = 0; //0 is north, values should be mod 360.
 
-	float down = Eigen::Vector3f::UnitZ(); //unit vector pointed down. TODO: set this to be actual down relative to the sensor board via calibration
+	Eigen::Vector3f calibratedDown = Eigen::Vector3f::UnitZ(); //unit vector pointed down. TODO: set this to be actual down relative to the sensor board via calibration
+	Eigen::Vector3f currentDown = calibratedDown;
 
-	Eigen::Quaternion<float> attitude(Eigen::angleAxisf(0, Eigen::Vector3f::UnitZ())); //current rotation quaternion
+	Eigen::Quaternion<float> attitude(Eigen::AngleAxisf(0, Eigen::Vector3f::UnitZ())); //current rotation quaternion
 	Eigen::Vector3f vel = Eigen::Vector3f::Zero(); //velocity
 	Eigen::Vector3f pos = Eigen::Vector3f::Zero(); //position
 
 	void newData(RawImuData data) {
 		attitude = Eigen::Quaternion<float>(data.qw, data.qx, data.qy, data.qz);
 
-		down = attitude.transformVector(vecDown);
+		currentDown = attitude._transformVector(calibratedDown);
 	}
 
 	void printData() {	
-		formVector(Eigen::Vector3f::UnitZ());
-		telem_pose(down.x(), down.y(), down.z(), vel.x(), vel.y(), vel.z(), pos.x(), pos.y(), pos.z());
+		telem_pose(currentDown.x(), currentDown.y(), currentDown.z(), pitch, roll, bearing);
 	}
 
 	void calibrateDown(); //TODO: Build funtion to figure out which way is down

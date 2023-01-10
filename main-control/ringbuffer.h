@@ -33,7 +33,7 @@
     }
 
     T get(size_t i){
-        return buf_[tail + i] % max_size_;
+        return buf_[tail_ + i] % max_size_;
     }
 
 	void reset(){
