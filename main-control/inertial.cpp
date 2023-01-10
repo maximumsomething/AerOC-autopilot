@@ -28,21 +28,23 @@ namespace DeadReckoner {
 	float pitch = 0; //0 is level, positive is upwards, negative is downwards
 	float bearing = 0; //0 is north, values should be mod 360.
 
-	Eigen::Vector3f calibratedDown = Eigen::Vector3f::UnitZ(); //unit vector pointed down. TODO: set this to be actual down relative to the sensor board via calibration
-	Eigen::Vector3f currentDown = calibratedDown;
-
-	Eigen::Quaternion<float> attitude(Eigen::AngleAxisf(0, Eigen::Vector3f::UnitZ())); //current rotation quaternion
+	Eigen::Quaternion<float> referenceRotation(Eigen::AngleAxisf(0, Eigen::Vector3f::UnitZ())); //rotation quaternion equal to what we would read when horizontal and pointed north
+	Eigen::Quaternion<float> rawAttitude(Eigen::AngleAxisf(0, Eigen::Vector3f::UnitZ())); //current rotation quaternion
+	Eigen::Quaternion<float> calibratedAttitude(Eigen::AngleAxisf(0, Eigen::Vector3f::UnitZ())); //current rotation quaternion
+	Eigen::Vector3f accel = Eigen::Vector3f::Zero(); //current acceleration
 	Eigen::Vector3f vel = Eigen::Vector3f::Zero(); //velocity
 	Eigen::Vector3f pos = Eigen::Vector3f::Zero(); //position
 
 	void newData(RawImuData data) {
-		attitude = Eigen::Quaternion<float>(data.qw, data.qx, data.qy, data.qz);
-
-		currentDown = attitude._transformVector(calibratedDown);
+		rawAttitude = Eigen::Quaternion<float>(data.qw, data.qx, data.qy, data.qz);
+		calibratedAttitude = rawAttitude*referenceRotation.inverse();
+		accel[0] = data.accelx;
+		accel[1] = data.accely;
+		accel[2] = data.accelz;
 	}
 
 	void printData() {	
-		telem_pose(currentDown.x(), currentDown.y(), currentDown.z(), pitch, roll, bearing);
+		telem_pose(accel[0], accel[1], accel[2], pitch, roll, bearing);
 	}
 
 	int hasBeenStableSince = 0;
@@ -57,7 +59,9 @@ namespace DeadReckoner {
 	}
 
 	// called when we've been stable enough to calibrate
-	void calibrateDown(); //TODO: Build function to figure out which way is down
+	void calibrateDown(){ //TODO: Build function to figure out which way is down
+	   referenceRotation = Eigen::AngleAxisf(0, accel.normalized() - (Eigen::Vector3f::UnitZ()));
+	}
 
 	float getRoll() {return roll;}
 	float getPitch() {return pitch;}
