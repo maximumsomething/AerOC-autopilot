@@ -1,9 +1,9 @@
 #pragma once 
 #include <memory>   
     template <class T>
-    class circular_buffer {
+    class ring_buffer {
     public:
-	explicit circular_buffer(size_t size) :
+	explicit ring_buffer(size_t size) :
 		buf_(std::unique_ptr<T[]>(new T[size])),
 		max_size_(size)
 	{}
@@ -20,7 +20,7 @@
         full_ = head_ == tail_;
     }
 	
-    T get(){
+    T pop(){
         if(empty()){
             return T();
         }
@@ -30,6 +30,10 @@
         tail_ = (tail_ + 1) % max_size_;
 
         return val;
+    }
+
+    T get(size_t i){
+        return buf_[tail + i] % max_size_;
     }
 
 	void reset(){

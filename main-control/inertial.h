@@ -13,4 +13,7 @@
 namespace DeadReckoner {
 	void newData(RawImuData data);
 	void printData();
+	float getRoll();
+	float getPitch();
+	float getBearing();
 };
