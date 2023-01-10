@@ -17,8 +17,8 @@ dstGroundCName = "telemetry_ground/autogen.cpp"
 
 srcfile = open(srcfilename, "r")
 
-idEnum = ('enum telem_ids {\n'
-	'telem_id_special_strmessage = 0,\n')
+idEnum = ('constexpr uint16_t telem_id_special_strmessage = 0xFFFF;\n'
+	'enum telem_ids {\n')
 structs = ''
 senders = ''
 sendersH = ''
