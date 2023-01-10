@@ -80,7 +80,7 @@ namespace DeadReckoner {
 
 	// called when we've been stable enough to calibrate
 	void calibrateDown(){ //TODO: Build function to figure out which way is down
-	   referenceRotation = Eigen::AngleAxisf(0, accel.normalized() - (Eigen::Vector3f::UnitZ()));
+	   referenceRotation = rawAttitude*Eigen::Quaternion<float>::FromTwoVectors(accel, Eigen::Vector3f::UnitZ());
 	}
 
 	float getRoll() {return roll;}
