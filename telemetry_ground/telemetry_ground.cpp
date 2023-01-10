@@ -5,19 +5,18 @@
 #include <unistd.h>
 #include <chrono>
 #include <iomanip>
-#include <cstring>
-#include <thread>
 
 // defined in autogen.cpp
-void recievePacket(uint16_t id, uint16_t length, void* data);
-int expectedLength(uint16_t id);
-constexpr uint16_t telem_id_special_strmessage = 0xFFFF;
+void recievePacket(uint8_t id, uint16_t length, void* data);
+int expectedLength(uint8_t id);
+constexpr uint8_t telem_id_special_strmessage = 0xFF;
 
 
 bool readPacket(FILE* serialIn) {
 	size_t partsRead;
 	struct {
-		uint16_t id;
+		uint8_t id;
+		uint8_t seq;
 		uint16_t packetLength;
 	} header;
 	partsRead = fread(&header, sizeof(header), 1, serialIn);
@@ -58,6 +57,9 @@ bool readPacket(FILE* serialIn) {
 
 
 	recievePacket(header.id, header.packetLength, buf);
+
+	// send acknowledgment
+	fwrite(&header.seq, 1, 1, serialIn);
 	return true;
 }
 
@@ -65,7 +67,7 @@ FILE* openSerial(const char* filename) {
 
 	// todo: this the proper way, with termios and cfmakeraw
 	system(("stty 9600 -F '" + std::string(filename) + "' raw").c_str());
-	FILE* serialIn = fopen(filename, "r");
+	FILE* serialIn = fopen(filename, "r+");
 	if (serialIn == nullptr) {
 		perror("Could not open serialIn file");
 		exit(1);
@@ -84,11 +86,6 @@ int main(int argc, char** argv) {
 
 	FILE* serialIn = openSerial(filename);
 
-	/*char buf[1024];
-	size_t bytesRead;
-	while ((bytesRead = fread(buf, sizeof(buf), serialIn)) > 0) {
-
-	}*/
 	while (true) {
 		if (readPacket(serialIn)) {
 			//continue;
@@ -104,29 +101,13 @@ int main(int argc, char** argv) {
 			}
 
 			// Send NACK (negative-acknowledgment) over the serial port
-			FILE* serialOut = fopen(filename, "w");
-			if (serialOut == nullptr) {
-				perror("Could not file for writing NACK");
-			}
-			char msg[] = "NACK";
-			fwrite(msg, strlen(msg), 1, serialOut);
-
-			fclose(serialOut);
-			// This will cause the other side to wait 200 ms before sending anything else.
+			char msg = 0;
+			fwrite(&msg, 1, 1, serialIn);
+			// This will cause the other side to wait 100 ms before sending anything else.
 
 
-			// jank solution to keep the read buffer clear.
-			/*std::thread([&] {
-				char buf[100];
-				// keep reading and discarding.
-				while(fread(buf, 1, sizeof(buf), serialIn) == sizeof(buf));
-				std::cerr << "reset complete" << std::endl;
-			}).detach();*/
-
-			// Wait for most of it.
-			usleep(100000);
+			usleep(75000);
 			// close and reopen the file
-			close(fileno(serialIn)); // will cause above thread to end
 			fclose(serialIn);
 			//std::cerr << "file closed" << std::endl;
 			serialIn = openSerial(filename);

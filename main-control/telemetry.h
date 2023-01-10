@@ -5,7 +5,7 @@
 void telem_strmessage(const char* string);
 
 void print_telem_timestamp();
-void send_telem_packet(uint16_t id, uint16_t length, const void* data);
+void send_telem_packet(uint8_t id, uint16_t length, const void* data);
 
 extern HardwareSerial* telem_serial;
 extern Stream* telem_save_stream;
