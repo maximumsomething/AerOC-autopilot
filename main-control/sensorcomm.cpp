@@ -152,7 +152,6 @@ RawImuData getImuData() {
 struct bmp3_dev bmpdev;
 struct bmp3_settings bmpsettings = { 0 };
 
-
 namespace BmpFuncs {
 
 	TwoWire* i2c_dev;
@@ -205,6 +204,7 @@ namespace BmpFuncs {
 	void delay_usec(uint32_t us, void *intf_ptr) { delayMicroseconds(us); }
 }
 
+// code adapted from BMP3-Sensor-API example code
 
 void bmp3_check_rslt(const char api_name[], int8_t rslt)
 {

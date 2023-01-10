@@ -17,14 +17,14 @@ dstGroundCName = "telemetry_ground/autogen.cpp"
 
 srcfile = open(srcfilename, "r")
 
-idEnum = ('enum telem_ids {\n'
-	'telem_id_special_strmessage = 0,\n')
+idEnum = ('constexpr uint8_t telem_id_special_strmessage = 0xFF;\n'
+	'enum telem_ids {\n')
 structs = ''
 senders = ''
 sendersH = ''
-lengthChecker = ('int expectedLength(uint16_t id) {\n'
+lengthChecker = ('int expectedLength(uint8_t id) {\n'
 	'\tswitch (id) {\n')
-reciever = ('void recievePacket(uint16_t id, uint16_t length, void* data) {\n'
+reciever = ('void recievePacket(uint8_t id, uint16_t length, void* data) {\n'
 	'\tswitch (id) {\n')
 
 srclines = srcfile.readlines()

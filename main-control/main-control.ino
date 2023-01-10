@@ -37,8 +37,8 @@ void loop() {
 		/*Serial.println("ax=" +  String(data.accelx) + " ay=" + String(data.accely) + " az=" + String(data.accelz));
 		Serial.println("gx=" +  String(data.gyrox) + " gy=" + String(data.gyroy) + " gz=" + String(data.gyroz));*/
 	}
-	// Do this at low Hz
-	if (loopCounter % (200 / 25) == 0) {
+	// Do this at 25 Hz
+	if (loopCounter % 8 == 0) {
 		readAltimeter();
 	}
 
