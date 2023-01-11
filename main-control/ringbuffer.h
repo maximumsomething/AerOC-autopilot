@@ -8,6 +8,14 @@
 		max_size_(size)
 	{}
 
+	// Fills the ring buffer with initial.
+	explicit ring_buffer(size_t size, T initial):
+	ring_buffer(size) {
+        for (size_t i = 0; i < size; ++i) {
+            put(initial);
+        }
+    }
+
 	void put(T item){
         buf_[head_] = item;
 

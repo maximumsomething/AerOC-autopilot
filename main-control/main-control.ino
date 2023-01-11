@@ -26,30 +26,35 @@ void loop() {
 
 	int startTime = micros();
 
+	// readImu will return true as long as there was new data to be read.
+	int readCounter = 0;
+	RawImuData imuData;
+	while (readImu()) {
+		++readCounter;
+		imuData = getImuData();
+		DeadReckoner::newData(imuData);
+	}
+	/*if (readCounter != 1) {
+		Serial.printf("Fascinating, we read %d imu values on this loop\n", readCounter);
+	}*/
 
-	readImu();
-	RawImuData imuData = getImuData();
-	DeadReckoner::newData(imuData);
-
-	if (startTime > lastPrintTime + 200000) {
+	if (readCounter > 0 && startTime > lastPrintTime + 200000) {
 		DeadReckoner::printData();
 		lastPrintTime = startTime;
-		/*Serial.println("ax=" +  String(imuData.accelx) + " ay=" + String(imuData.accely) + " az=" + String(imuData.accelz));
-		Serial.println("gx=" +  String(imuData.gyrox) + " gy=" + String(imuData.gyroy) + " gz=" + String(imuData.gyroz));*/
+		Serial.printf("ax=%f, ay=%f, az=%f; ", imuData.accelx, imuData.accely, imuData.accelz);
+		Serial.printf("gx=%f, gy=%f, gz=%f\n", imuData.gyrox, imuData.gyroy, imuData.gyroz);
 	}
 	// Do this at 25 Hz
-	if (loopCounter % 8 == 0) {
+	/*if (loopCounter % 8 == 0) {
 		readAltimeter();
-    readAirspeed();
-	}
+		readAirspeed();
+	}*/
 
 	int endTime = micros();
 	// make loop
 	int delayTime = loopInterval - (endTime - startTime);
 	if (delayTime < 0) {
-		Serial.print("Warning: loop ran over by ");
-		Serial.print(-delayTime);
-		Serial.println(" microseconds");
+		// Serial.print("Warning: loop ran over by "); Serial.print(-delayTime); Serial.println(" microseconds");
 	}
 	else delayMicroseconds(delayTime);
 }

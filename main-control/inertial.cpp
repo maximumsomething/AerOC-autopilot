@@ -21,6 +21,9 @@
 
 namespace DeadReckoner {
 
+	using Eigen::Vector3f;
+	using Eigen::Quaternionf;
+
 	// 200 Hz sample rate
 	constexpr float SAMPLE_DELTA = 1.0/200.0;
 
@@ -28,34 +31,106 @@ namespace DeadReckoner {
 	float pitch = 0; //0 is level, positive is upwards, negative is downwards
 	float bearing = 0; //0 is north, values should be mod 360.
 
-	Eigen::Quaternion<float> referenceRotation(Eigen::AngleAxisf(0, Eigen::Vector3f::UnitZ())); //rotation quaternion equal to what we would read when horizontal and pointed north
-	Eigen::Quaternion<float> rawAttitude(Eigen::AngleAxisf(0, Eigen::Vector3f::UnitZ())); //current rotation quaternion
-	Eigen::Quaternion<float> calibratedAttitude(Eigen::AngleAxisf(0, Eigen::Vector3f::UnitZ())); //current rotation quaternion
-	Eigen::Vector3f accel = Eigen::Vector3f::Zero(); //current acceleration
-	Eigen::Vector3f vel = Eigen::Vector3f::Zero(); //velocity
-	Eigen::Vector3f pos = Eigen::Vector3f::Zero(); //position
+	Quaternionf referenceRotation(Eigen::AngleAxisf(0, Vector3f::UnitZ())); //rotation quaternion equal to what we would read when horizontal and pointed north
+	Quaternionf rawAttitude(Eigen::AngleAxisf(0, Vector3f::UnitZ())); //current rotation quaternion
+	Quaternionf calibratedAttitude(Eigen::AngleAxisf(0, Vector3f::UnitZ())); //current rotation quaternion
+	Vector3f accel = Vector3f::Zero(); //current acceleration
+	Vector3f vel = Vector3f::Zero(); //velocity
+	Vector3f pos = Vector3f::Zero(); //position
 
 	constexpr int samplesToCalibrate = 200; // one second
 	int stableSamples = 0;
 
 	// check whether acceleration and rotation is stable this sample
 	bool checkStability(const RawImuData& data) {
-		constexpr float maxDps = 0.5;
-		constexpr float maxGDiff = 0.03;
+		constexpr float maxDps = 3;//0.5;
+		constexpr float maxGDiff = 0.1;//0.03;
 		bool gyroStable = fabs(data.gyrox) < maxDps && fabs(data.gyroy) < maxDps && fabs(data.gyroz) < maxDps;
 		if (!gyroStable) return false;
 		// check magnitude of acceleration is 1g
-		float accel = Eigen::Vector3f(data.accelx, data.accely, data.accelz).norm();
+		float accel = Vector3f(data.accelx, data.accely, data.accelz).norm();
 		//Serial.printf("accel: %f\n", accel);
 		return fabs(accel - 1) < maxGDiff;
 	}
 
+	constexpr int SAMPLES_TO_AVERAGE = 200;
+	ring_buffer premultipliedPastAccels(SAMPLES_TO_AVERAGE, Vector3f::Zero());
+
+	// maintains a ring buffer and a rolling average of acceleration data from the past second.
+	Vector3f averageAccel = Vector3f::Zero();
+	void updateAverages(Vector3f accel) {
+		Vector3f multAccel = accel * (1.0 / SAMPLES_TO_AVERAGE);
+		averageAccel += multAccel;
+		averageAccel -= premultipliedPastAccels.pop();
+		premultipliedPastAccels.put(multAccel);
+	}
+
+
+	Vector3f accelBias(nanf(""), nanf(""), nanf(""));
+	bool biasCalibrated[] = { false, false, false, false, false };
+
+	// Call when stable to update the bias for the current down axis.
+	void calibrateAccelBias() {
+
+		Vector3f posXAccel = averageAccel;
+		float sign = 1;
+
+		for (int i = 0; i < 6; ++i) {
+
+			if (!biasCalibrated[i]) {
+				float bias = calPosXAccelBias(posXAccel * sign);
+				if (!isnanf(bias)) {
+
+					if (isnanf(accelBias[i/2])) accelBias[i/2] = bias * sign;
+					else accelBias[i/2] = accelBias[i/2] * 0.5 + bias * sign * 0.5;
+
+					Serial.printf("***Calibrated bias for axis %d (%c%c)***\n\n",
+								  i,
+								  (sign == 1) ? '+', '-',
+								  'x' + i/2);
+					biasCalibrated[i] = true;
+				}
+			}
+
+			if (sign == 1) sign = -1;
+			else {
+				sign = 1;
+				// swap axes
+				float x = posXAccel[0];
+				posXAccel[0] = posXAccel[1];
+				posXAccel[1] = posXAccel[2];
+				posXAccel[2] = x;
+			}
+		}
+
+		bool allAxesCalibrated = true;
+		for (int i = 0; i < 6; ++i) allAxesCalibrated = allAxesCalibrated && biasCalibrated[i];
+		if (allAxesCalibrated) {
+			Serial.printf("Calibrated accelerometer biases: x=%f y=%f z=%f", accelBias[0], accelBias[1], accelBias[2]);
+		}
+	}
+	// If the given vector is pointing along the +X axis, return the bias.
+	float calPosXAccelBias(Vector3f posXAccel) {
+		constexpr float MAX_UNCAL_ACCEL_DIFF = 0.1;
+
+		if (posXAccel[0] > 0 &&
+			fabs(posXAccel[0] - 1.0) < MAX_UNCAL_ACCEL_DIFF
+			&& fabs(posXAccel[1]) < MAX_UNCAL_ACCEL_DIFF
+			&& fabs(posXAccel[2]) < MAX_UNCAL_ACCEL_DIFF) {
+
+			return 1.0 - posXAccel[0];
+		}
+		else return nanf("");
+	}
+
 	void newData(RawImuData data) {
-		rawAttitude = Eigen::Quaternion<float>(data.qw, data.qx, data.qy, data.qz);
+		rawAttitude = Quaternionf(data.qw, data.qx, data.qy, data.qz);
 		calibratedAttitude = rawAttitude*referenceRotation.inverse();
 		accel[0] = data.accelx;
 		accel[1] = data.accely;
 		accel[2] = data.accelz;
+
+		updateAverages(accel);
 
 		if (checkStability(data)) {
 			stableSamples++;
@@ -64,6 +139,7 @@ namespace DeadReckoner {
 		if (stableSamples >= samplesToCalibrate) {
 			//Serial.println("Stable! calibrating");
 			//calibrateDown();
+			calibrateAccelBias();
 		}
 	}
 
@@ -72,15 +148,9 @@ namespace DeadReckoner {
 	}
 
 
-
-	// maintains a ring buffer and a rolling average of acceleration data from the past second.
-	void updateAverages() {
-
-	}
-
 	// called when we've been stable enough to calibrate
 	void calibrateDown(){ //TODO: Build function to figure out which way is down
-	   referenceRotation = rawAttitude*Eigen::Quaternion<float>::FromTwoVectors(accel, Eigen::Vector3f::UnitZ());
+	   referenceRotation = rawAttitude*Quaternionf::FromTwoVectors(accel, Vector3f::UnitZ());
 	}
 
 	float getRoll() {return roll;}

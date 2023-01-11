@@ -17,7 +17,7 @@ struct RawImuData {
 };
 
 RawImuData getImuData();
-void readImu();
+bool readImu();
 
 void altimeterSetup();
 void readAltimeter();
