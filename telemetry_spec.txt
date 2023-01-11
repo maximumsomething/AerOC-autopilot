@@ -4,4 +4,5 @@ fakedata uint8_t num1, uint16_t num2
 
 pose float downX, float downY, float downZ, float pitch, float roll, float bearing
 pressureTemp390 float pressurehPa, float tempC, float altitudeM
+airspeed float speed
 

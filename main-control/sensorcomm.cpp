@@ -375,12 +375,14 @@ void airspeedSetup(){
 
 void readAirspeed(){
 	const float AIR_DENSITY = 1.204; //kg/m^3. Might calculate en suite later.
+	const float PRESSURE_DIFF_CORRECTION = 91; // to correct for the apparent 91Pa pressure differential that the sensor seems to output at rest
 	float airspeed;
 	if(pres.Read()){	
-		airspeed = sqrt(2*pres.pres_pa()/AIR_DENSITY);
-		Serial.print(airspeed);
+		float pressureDiff = abs(pres.pres_pa()) - PRESSURE_DIFF_CORRECTION;
+		airspeed = sqrt(2*pressureDiff/AIR_DENSITY);
+		Serial.printf("Airspeed: %f m/s. Raw pressure differential: %f \n", airspeed, pressureDiff);
 	}else{
-		Serial.print("Error communicating with airspeed sensor");
+		Serial.print("Error communicating with airspeed sensor\n");
 	}
 
 }

@@ -40,6 +40,7 @@ void loop() {
 	// Do this at 25 Hz
 	if (loopCounter % 8 == 0) {
 		readAltimeter();
+    readAirspeed();
 	}
 
 	int endTime = micros();
