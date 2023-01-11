@@ -375,9 +375,10 @@ void airspeedSetup(){
 
 void readAirspeed(){
 	const float AIR_DENSITY = 1.204; //kg/m^3. Might calculate en suite later.
-
+	float airspeed;
 	if(pres.Read()){	
-		Serial.print(sqrt(2*pres.pres_pa()/AIR_DENSITY));
+		airspeed = sqrt(2*pres.pres_pa()/AIR_DENSITY);
+		Serial.print(airspeed);
 	}else{
 		Serial.print("Error communicating with airspeed sensor");
 	}
