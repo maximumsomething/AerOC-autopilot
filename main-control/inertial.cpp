@@ -54,7 +54,7 @@ namespace DeadReckoner {
 	}
 
 	constexpr int SAMPLES_TO_AVERAGE = 200;
-	ring_buffer premultipliedPastAccels(SAMPLES_TO_AVERAGE, Vector3f::Zero());
+	ring_buffer<Vector3f> premultipliedPastAccels(SAMPLES_TO_AVERAGE, Vector3f::Zero());
 
 	// maintains a ring buffer and a rolling average of acceleration data from the past second.
 	Vector3f averageAccel = Vector3f::Zero();
@@ -66,8 +66,9 @@ namespace DeadReckoner {
 	}
 
 
+	float calPosXAccelBias(Vector3f posXAccel);
 	Vector3f accelBias(nanf(""), nanf(""), nanf(""));
-	bool biasCalibrated[] = { false, false, false, false, false };
+	bool biasCalibrated[6] = { false, false, false, false, false, false };
 
 	// Call when stable to update the bias for the current down axis.
 	void calibrateAccelBias() {
@@ -86,7 +87,7 @@ namespace DeadReckoner {
 
 					Serial.printf("***Calibrated bias for axis %d (%c%c)***\n\n",
 								  i,
-								  (sign == 1) ? '+', '-',
+								  (sign == 1) ? '+': '-',
 								  'x' + i/2);
 					biasCalibrated[i] = true;
 				}
