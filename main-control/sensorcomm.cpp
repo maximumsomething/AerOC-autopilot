@@ -112,6 +112,18 @@ void imuSetup() {
 	// DMP_FEATURE_LP_QUAT can also be used. It uses the
 	// accelerometer in low-power mode to estimate quat's.
 	// DMP_FEATURE_LP_QUAT and 6X_LP_QUAT are mutually exclusive
+
+	long bias[3];
+	mpu_read_6500_accel_bias(bias); // mystery function
+	Serial.printf("accel bias: 0: %d 1: %d 2: %d\n", bias[0], bias[1], bias[2]); // units:
+
+	// Calibrated accelerometer biases: x=-0.015164 y=-0.006503 z=0.101141
+	long newbias[] = {31, 13, -207};
+	mpu_set_accel_bias_6500_reg(newbias);
+
+	mpu_read_6500_accel_bias(bias); // mystery function
+	Serial.printf("new accel bias: 0: %d 1: %d 2: %d\n", bias[0], bias[1], bias[2]);
+
 }
 
 void printIMUData() {
@@ -136,18 +148,29 @@ void printIMUData() {
 	Serial.println();
 }
 
-void readImu() {
+bool readImu() {
 	// Check for new data in the FIFO
 	if (imu.fifoAvailable()) {
 		// Use dmpUpdateFifo to update the ax, gx, mx, etc. values
-		if (imu.dmpUpdateFifo() == INV_SUCCESS) {
-			imu.computeEulerAngles();
-			//printIMUData();
+		inv_error_t result = imu.dmpUpdateFifo();
+		if (result == INV_SUCCESS) {
+			return true;
+		}
+		else {
+			Serial.printf("Error reading imu fifo: %d\n", result);
+			imu.resetFifo();
 		}
 	}
+	return false;
+}
+
+int bumpImu() {
+	return imu.resetFifo();
 }
 
 RawImuData getImuData() {
+	/*imu.update(UPDATE_COMPASS);
+	Serial.printf("magX: %f\n", imu.calcMag(imu.mx));*/
 	return {
 		imu.calcAccel(imu.ax), imu.calcAccel(imu.ay),  imu.calcAccel(imu.az),
 		imu.calcGyro(imu.gx), imu.calcGyro(imu.gy), imu.calcGyro(imu.gz),

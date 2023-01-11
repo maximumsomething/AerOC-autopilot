@@ -44,8 +44,8 @@ namespace DeadReckoner {
 
 	// check whether acceleration and rotation is stable this sample
 	bool checkStability(const RawImuData& data) {
-		constexpr float maxDps = 3;//0.5;
-		constexpr float maxGDiff = 0.1;//0.03;
+		constexpr float maxDps = 5;//0.5;
+		constexpr float maxGDiff = 0.2;//0.03;
 		bool gyroStable = fabs(data.gyrox) < maxDps && fabs(data.gyroy) < maxDps && fabs(data.gyroz) < maxDps;
 		if (!gyroStable) return false;
 		// check magnitude of acceleration is 1g
@@ -73,6 +73,7 @@ namespace DeadReckoner {
 
 	// Call when stable to update the bias for the current down axis.
 	void calibrateAccelBias() {
+		//Serial.printf("calibrateAccelBias with x=%f y=%f z=%f\n", averageAccel[0], averageAccel[1], averageAccel[2]);
 
 		Vector3f posXAccel = averageAccel;
 		float sign = 1;
@@ -86,7 +87,7 @@ namespace DeadReckoner {
 					if (isnanf(accelBias[i/2])) accelBias[i/2] = bias * sign;
 					else accelBias[i/2] = accelBias[i/2] * 0.5 + bias * sign * 0.5;
 
-					Serial.printf("***Calibrated bias for axis %d (%c%c)***\n\n",
+					Serial.printf("***Calibrated bias for axis %d (%c%c)***\n\n\n\n",
 								  i,
 								  (sign == 1) ? '+': '-',
 								  'x' + i/2);
@@ -108,15 +109,15 @@ namespace DeadReckoner {
 		bool allAxesCalibrated = true;
 		for (int i = 0; i < 6; ++i) allAxesCalibrated = allAxesCalibrated && biasCalibrated[i];
 		if (allAxesCalibrated) {
-			Serial.printf("Calibrated accelerometer biases: x=%f y=%f z=%f", accelBias[0], accelBias[1], accelBias[2]);
+			Serial.printf("Calibrated accelerometer biases: x=%f y=%f z=%f\n", accelBias[0], accelBias[1], accelBias[2]);
 		}
 	}
 	// If the given vector is pointing along the +X axis, return the bias.
 	float calPosXAccelBias(Vector3f posXAccel) {
-		constexpr float MAX_UNCAL_ACCEL_DIFF = 0.1;
+		constexpr float MAX_UNCAL_ACCEL_DIFF = 0.2;
 
-		if (posXAccel[0] > 0 &&
-			fabs(posXAccel[0] - 1.0) < MAX_UNCAL_ACCEL_DIFF
+		if (posXAccel[0] > 0
+			&& fabs(posXAccel[0] - 1.0) < MAX_UNCAL_ACCEL_DIFF
 			&& fabs(posXAccel[1]) < MAX_UNCAL_ACCEL_DIFF
 			&& fabs(posXAccel[2]) < MAX_UNCAL_ACCEL_DIFF) {
 
@@ -124,6 +125,7 @@ namespace DeadReckoner {
 		}
 		else return nanf("");
 	}
+	void calibrateDown();
 
 	void newData(RawImuData data) {
 		rawAttitude = Quaternionf(data.qw, data.qx, data.qy, data.qz);
@@ -156,9 +158,12 @@ namespace DeadReckoner {
 		else stableSamples = 0;
 		if (stableSamples >= samplesToCalibrate) {
 			//Serial.println("Stable! calibrating");
-			//calibrateDown();
-			calibrateAccelBias();
+			calibrateDown();
+			//calibrateAccelBias();
+			// light up the on-board LED when stable
+			digitalWrite(13, HIGH);
 		}
+		else digitalWrite(13, LOW);
 	}
 
 	void printData() {	
