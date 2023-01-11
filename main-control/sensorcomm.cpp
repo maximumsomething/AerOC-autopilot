@@ -381,6 +381,7 @@ void readAirspeed(){
 		float pressureDiff = abs(pres.pres_pa()) - PRESSURE_DIFF_CORRECTION;
 		airspeed = sqrt(2*pressureDiff/AIR_DENSITY);
 		Serial.printf("Airspeed: %f m/s. Raw pressure differential: %f \n", airspeed, pressureDiff);
+		telem_airspeed(airspeed, pressureDiff);
 	}else{
 		Serial.print("Error communicating with airspeed sensor\n");
 	}
