@@ -134,18 +134,18 @@ namespace DeadReckoner {
 
 		Vector3f down = calibratedAttitude._transformVector(Vector3f::UnitZ());
 
-		pitch = atan(down[0]/down[2]);
-		roll = atan(down[1]/down[2]);
+		pitch = abs(atan(down[0]/down[2]));
+		roll = abs(atan(down[1]/down[2]));
 		if(down[2] > 0){
 			roll += 90
 		}
-		bearing = atan(down[1]/down[0]);
+		bearing = abs(atan(down[1]/down[0]));
 		if(down[0] < 0 && down[1] >= 0){
 			bearing += 90;
 		}else if(down[0] < 0 && down[1] < 0){
-			bearing += 180
+			bearing += 180;
 		}else if(down[0] >= 0 && down[1] < 0){
-			bearing += 270
+			bearing += 270;
 		}
 
 		updateAverages(accel);
