@@ -3,6 +3,7 @@
 #include "telemetry.h"
 #include "telemetry_autogen.h"
 #include "ringbuffer.h"
+#include <cmath>
 #include <eigen.h>
 #include <Eigen/Geometry>
 #include <Arduino.h>
@@ -32,8 +33,8 @@ namespace DeadReckoner {
 	float bearing = 0; //0 is north, values should be mod 360.
 
 	Quaternionf referenceRotation(Eigen::AngleAxisf(0, Vector3f::UnitZ())); //rotation quaternion equal to what we would read when horizontal and pointed north
-	Quaternionf rawAttitude(Eigen::AngleAxisf(0, Vector3f::UnitZ())); //current rotation quaternion
-	Quaternionf calibratedAttitude(Eigen::AngleAxisf(0, Vector3f::UnitZ())); //current rotation quaternion
+	Quaternionf rawAttitude(Eigen::AngleAxisf(0, Vector3f::UnitZ())); //current rotation quaternion direct from the board
+	Quaternionf calibratedAttitude(Eigen::AngleAxisf(0, Vector3f::UnitZ())); //current rotation quaternion, relative to the reference rotation
 	Vector3f accel = Vector3f::Zero(); //current acceleration
 	Vector3f vel = Vector3f::Zero(); //velocity
 	Vector3f pos = Vector3f::Zero(); //position
@@ -131,6 +132,22 @@ namespace DeadReckoner {
 		accel[1] = data.accely;
 		accel[2] = data.accelz;
 
+		Vector3f down = calibratedAttitude._transformVector(Vector3f::UnitZ());
+
+		pitch = atan(down[0]/down[2]);
+		roll = atan(down[1]/down[2]);
+		if(down[2] > 0){
+			roll += 90
+		}
+		bearing = atan(down[1]/down[0]);
+		if(down[0] < 0 && down[1] >= 0){
+			bearing += 90;
+		}else if(down[0] < 0 && down[1] < 0){
+			bearing += 180
+		}else if(down[0] >= 0 && down[1] < 0){
+			bearing += 270
+		}
+
 		updateAverages(accel);
 
 		if (checkStability(data)) {
@@ -147,7 +164,6 @@ namespace DeadReckoner {
 	void printData() {	
 		telem_pose(accel[0], accel[1], accel[2], pitch, roll, bearing);
 	}
-
 
 	// called when we've been stable enough to calibrate
 	void calibrateDown(){ //TODO: Build function to figure out which way is down
