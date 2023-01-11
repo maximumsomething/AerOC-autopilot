@@ -22,6 +22,9 @@ void readImu();
 void altimeterSetup();
 void readAltimeter();
 
+void airspeedSetup();
+void readAirspeed();
+
 struct TnP {
 
 };

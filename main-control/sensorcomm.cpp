@@ -1,16 +1,20 @@
 #include "sensorcomm.h"
 #include "telemetry.h"
 #include "inertial.h"
+#include "ms4525do.h"
+#include "cmath"
 #include <SparkFunMPU9250-DMP.h>
 
+bfs::Ms4525do pres;
 
 void setupAllComms() {
 	usbSerialSetup();
 	telemSerialSetup();
 	i2cSetup();
-	// i2cScan();
+	//i2cScan();
 	imuSetup();
 	altimeterSetup();
+	airspeedSetup();
 }
 
 void usbSerialSetup() {
@@ -41,6 +45,11 @@ void i2cSetup() {
 	pinMode(17, INPUT_PULLUP);
 	Wire1.begin();
 	Wire1.setClock(1000000);
+
+	pinMode(24, INPUT_PULLUP);
+	pinMode(25, INPUT_PULLUP);
+	Wire2.begin();
+	Wire2.setClock(1000000);
 }
 
 void i2cScan() {
@@ -54,8 +63,8 @@ void i2cScan() {
 		// The i2c_scanner uses the return value of
 		// the Write.endTransmisstion to see if
 		// a device did acknowledge to the address.
-		Wire.beginTransmission(address);
-		error = Wire.endTransmission();
+		Wire2.beginTransmission(address);
+		error = Wire2.endTransmission();
 
 		if (error == 0) {
 			Serial.print("I2C device found at address 0x");
@@ -309,8 +318,8 @@ void altimeterSetup() {
     bmp3_check_rslt("bmp3_set_op_mode", rslt);
 
 	Serial.println("Barometer set up");
-
 }
+
 void readAltimeter() {
     struct bmp3_status status = { { 0 } };
 	struct bmp3_data data = { 0 };
@@ -354,4 +363,23 @@ void readAltimeter() {
 	else {
 		Serial.print("Barometer not ready\n");
 	}
+}
+
+void airspeedSetup(){
+	pres.Config(&Wire2, 0x28, 1.0f, -1.0f);
+
+	if (!pres.Begin()) {
+    	Serial.println("Error communicating with barometric altimiter");
+	}
+}
+
+void readAirspeed(){
+	const float AIR_DENSITY = 1.204; //kg/m^3. Might calculate en suite later.
+
+	if(pres.Read()){	
+		Serial.print(sqrt(2*pres.pres_pa()/AIR_DENSITY));
+	}else{
+		Serial.print("Error communicating with airspeed sensor");
+	}
+
 }
