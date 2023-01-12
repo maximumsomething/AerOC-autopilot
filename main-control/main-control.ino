@@ -45,11 +45,10 @@ void loop() {
 		Serial.printf("gx=%f, gy=%f, gz=%f\n", imuData.gyrox, imuData.gyroy, imuData.gyroz);
 	}
 	// Do this at 25 Hz
-	/*if (loopCounter % 8 == 0) {
-		readAltimeter();
+	if (loopCounter % 8 == 0) {
+		//readAltimeter();
 		readAirspeed();
-	}*/
-
+	}
 	int endTime = micros();
 	// make loop
 	int delayTime = loopInterval - (endTime - startTime);
