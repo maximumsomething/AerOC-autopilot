@@ -13,6 +13,7 @@ constexpr int loopInterval = 5000; // microseconds
 int lastPrintTime = 0;
 int loopCounter = 0;
 
+int successfulImuReads = 0;
 
 void loop() {
 	++loopCounter;
@@ -31,12 +32,18 @@ void loop() {
 	RawImuData imuData;
 	while (readImu()) {
 		++readCounter;
+		++successfulImuReads;
 		imuData = getImuData();
 		DeadReckoner::newData(imuData);
 	}
 	/*if (readCounter != 1) {
 		Serial.printf("Fascinating, we read %d imu values on this loop\n", readCounter);
 	}*/
+	if (readCounter == 0) {
+		bumpImu();
+		Serial.printf("IMU bus reset after %d successful reads\n", successfulImuReads);
+		successfulImuReads = 0;
+	}
 
 	if (readCounter > 0 && startTime > lastPrintTime + 200000) {
 		DeadReckoner::printData();

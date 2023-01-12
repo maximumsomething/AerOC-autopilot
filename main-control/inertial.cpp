@@ -42,10 +42,17 @@ namespace DeadReckoner {
 	constexpr int samplesToCalibrate = 200; // one second
 	int stableSamples = 0;
 
+//#define CALIBRATE_ACCEL_BIAS
+
 	// check whether acceleration and rotation is stable this sample
 	bool checkStability(const RawImuData& data) {
-		constexpr float maxDps = 5;//0.5;
-		constexpr float maxGDiff = 0.2;//0.03;
+#ifdef CALIBRATE_ACCEL_BIAS
+		constexpr float maxDps = 5;
+		constexpr float maxGDiff = 0.2;
+#else
+		constexpr float maxDps = 0.5;
+		constexpr float maxGDiff = 0.03;
+#endif
 		bool gyroStable = fabs(data.gyrox) < maxDps && fabs(data.gyroy) < maxDps && fabs(data.gyroz) < maxDps;
 		if (!gyroStable) return false;
 		// check magnitude of acceleration is 1g
@@ -66,6 +73,7 @@ namespace DeadReckoner {
 		premultipliedPastAccels.put(multAccel);
 	}
 
+#ifdef CALIBRATE_ACCEL_BIAS
 
 	float calPosXAccelBias(Vector3f posXAccel);
 	Vector3f accelBias(nanf(""), nanf(""), nanf(""));
@@ -125,6 +133,9 @@ namespace DeadReckoner {
 		}
 		else return nanf("");
 	}
+#endif
+
+
 	void calibrateDown();
 
 	void newData(RawImuData data) {
@@ -159,7 +170,9 @@ namespace DeadReckoner {
 		if (stableSamples >= samplesToCalibrate) {
 			//Serial.println("Stable! calibrating");
 			calibrateDown();
-			//calibrateAccelBias();
+#ifdef CALIBRATE_ACCEL_BIAS
+			calibrateAccelBias();
+#endif
 			// light up the on-board LED when stable
 			digitalWrite(13, HIGH);
 		}
