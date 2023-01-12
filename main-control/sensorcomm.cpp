@@ -433,8 +433,7 @@ namespace airspeedCalc{
 			}
 			
 			float airspeed = sqrt(2*avgPressureDiff/AIR_DENSITY);
-			
-			telem_airspeed(airspeed, pressureDiff);
+			telem_airspeed(airspeed, avgPressureDiff);
 		}else{
 			Serial.print("Error communicating with airspeed sensor\n");
 		}
