@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "sensorcomm.h"
 #include "telemetry.h"
 #include "inertial.h"
@@ -14,8 +15,10 @@ void setupAllComms() {
 	i2cSetup();
 	//i2cScan();
 	imuSetup();
-	altimeterSetup();
+	//altimeterSetup();
 	airspeedCalc::airspeedSetup();
+	// status LED
+	pinMode(13, OUTPUT);
 }
 
 void usbSerialSetup() {
@@ -34,21 +37,21 @@ void telemSerialSetup() {
 
 void i2cSetup() {
 	// Start the first I2C bus (MPU9250)
-	pinMode(18, INPUT_PULLUP);
-	pinMode(19, INPUT_PULLUP);
+	//pinMode(18, INPUT_PULLUP);
+	//pinMode(19, INPUT_PULLUP);
 
 	Wire.begin();
 	// 1MHz data rate
-	Wire.setClock(1000000);
+	Wire.setClock(400000);
 
 	// start the second I2C bus (BMP390), Wire1, on pins 16 and 17
-	pinMode(16, INPUT_PULLUP);
-	pinMode(17, INPUT_PULLUP);
-	Wire1.begin();
-	Wire1.setClock(1000000);
+	//pinMode(16, INPUT_PULLUP);
+	//pinMode(17, INPUT_PULLUP);
+	//Wire1.begin();
+	//Wire1.setClock(1000000);
 
-	pinMode(24, INPUT_PULLUP);
-	pinMode(25, INPUT_PULLUP);
+	//pinMode(24, INPUT_PULLUP);
+	//pinMode(25, INPUT_PULLUP);
 	Wire2.begin();
 	Wire2.setClock(1000000);
 }
@@ -89,8 +92,19 @@ void i2cScan() {
 }
 
 #include <SparkFunMPU9250-DMP.h>
+extern "C" {
+#include "util/inv_mpu.h"
+}
 
 MPU9250_DMP imu;
+
+inv_error_t MPU9250_DMP::dmpSetAccelBias(long * bias) {
+	return dmp_set_accel_bias(bias);
+}
+
+int g_to_q16(float g) {
+
+}
 
 void imuSetup() {
 	// Call imu.begin() to verify communication and initialize
@@ -103,8 +117,10 @@ void imuSetup() {
 		}
 	}
 
-	imu.setSensors(INV_XYZ_GYRO | INV_XYZ_ACCEL);               // Enable gyroscope and accel
+	imu.setSensors(INV_XYZ_GYRO | INV_XYZ_ACCEL | INV_XYZ_COMPASS);               // Enable gyroscope and accel
 	imu.setGyroFSR(2000);                                       // Set gyro to 2000 dps
+	imu.setAccelFSR(8);
+
 
 	imu.dmpBegin(DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO |
 	DMP_FEATURE_6X_LP_QUAT |                                // Enable 6-axis quat
@@ -115,14 +131,16 @@ void imuSetup() {
 	// DMP_FEATURE_LP_QUAT and 6X_LP_QUAT are mutually exclusive
 
 	long bias[3];
-	mpu_read_6500_accel_bias(bias); // mystery function
-	Serial.printf("accel bias: 0: %d 1: %d 2: %d\n", bias[0], bias[1], bias[2]); // units:
+	mpu_read_6500_accel_bias(bias);
+	Serial.printf("accel bias: 0: %d 1: %d 2: %d\n", bias[0], bias[1], bias[2]); // units: 1/4096 g ?
 
-	// Calibrated accelerometer biases: x=-0.015164 y=-0.006503 z=0.101141
-	long newbias[] = {31, 13, -207};
+	// for our HiLetGo MPU9255: Calibrated accelerometer biases: x=-0.015164 y=-0.006503 z=0.101141
+	//long newbias[] = {31, 13, -207}; // units: 1/2048 g
+	// For our Gy-91 MPU6500: Calibrated accelerometer biases: x=0.006198 y=-0.001784 z=-0.006231
+	long newbias[] = {-13, 4, 13}; // units: 1/2048 g
 	mpu_set_accel_bias_6500_reg(newbias);
 
-	mpu_read_6500_accel_bias(bias); // mystery function
+	mpu_read_6500_accel_bias(bias);
 	Serial.printf("new accel bias: 0: %d 1: %d 2: %d\n", bias[0], bias[1], bias[2]);
 
 }
@@ -165,8 +183,10 @@ bool readImu() {
 	return false;
 }
 
-int bumpImu() {
-	return imu.resetFifo();
+void bumpImu() {
+	Wire.end();
+	Wire.begin();
+	imu.resetFifo();
 }
 
 RawImuData getImuData() {
@@ -372,7 +392,7 @@ void readAltimeter() {
 		float atmospheric = data.pressure / 100.0F;
 		float altitude = 44330.0 * (1.0 - pow(atmospheric / 1013.25, 0.1903));
 
-		telem_pressureTemp390(data.pressure / 100.0, data.temperature, altitude);
+		//telem_pressureTemp390(data.pressure / 100.0, data.temperature, altitude);
 
 		/*
 		#ifdef BMP3_FLOAT_COMPENSATION
