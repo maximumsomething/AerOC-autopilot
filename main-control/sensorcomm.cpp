@@ -9,6 +9,8 @@
 
 bfs::Ms4525do pres;
 
+float baromAltitude;
+
 void setupAllComms() {
 	usbSerialSetup();
 	telemSerialSetup();
@@ -390,7 +392,7 @@ void readAltimeter() {
 		bmp3_check_rslt("bmp3_get_status", rslt);
 
 		float atmospheric = data.pressure / 100.0F;
-		float altitude = 44330.0 * (1.0 - pow(atmospheric / 1013.25, 0.1903));
+		baromAltitude = 44330.0 * (1.0 - pow(atmospheric / 1013.25, 0.1903));
 
 		//telem_pressureTemp390(data.pressure / 100.0, data.temperature, altitude);
 
@@ -409,6 +411,10 @@ void readAltimeter() {
 	}
 }
 
+float getBaromAltitude(){
+	return baromAltitude;
+}
+
 namespace airspeedCalc{
 	ring_buffer<float> pressureBuffer(100, 0);
 	float avgPressureDiff = 0;
@@ -425,14 +431,14 @@ namespace airspeedCalc{
 		const float PRESSURE_DIFF_CORRECTION = 91; // to correct for the apparent 91Pa pressure differential that the sensor seems to output at rest
 
 		if(pres.Read()){	
-			float pressureDiff = fabs(pres.pres_pa()); //calculate raw airspeed from pressure differential
+			float pressureDiff = fabs(pres.pres_pa()); 
 			pressureBuffer.put(pressureDiff); // use a ring buffer to maintain rolling half-second pressure differential average
 			avgPressureDiff += .01 * pressureDiff;
 			if(pressureBuffer.full()){
 				avgPressureDiff -= .01*pressureBuffer.pop();
 			}
 			
-			float airspeed = sqrt(2*avgPressureDiff/AIR_DENSITY);
+			float airspeed = sqrt(2*avgPressureDiff/AIR_DENSITY); //calculate raw airspeed from pressure differential
 			telem_airspeed(airspeed, avgPressureDiff);
 		}else{
 			Serial.print("Error communicating with airspeed sensor\n");

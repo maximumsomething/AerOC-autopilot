@@ -8,7 +8,6 @@
 #include <Eigen/Geometry>
 #include <Arduino.h>
 
-
 /*
  * Terminology:
  * Reference rotation: a quaternion equaling what the raw attitude would be when pointed horizontally and "north".
@@ -35,12 +34,18 @@ namespace DeadReckoner {
 	Quaternionf referenceRotation(Eigen::AngleAxisf(0, Vector3f::UnitZ())); //rotation quaternion equal to what we would read when horizontal and pointed north
 	Quaternionf rawAttitude(Eigen::AngleAxisf(0, Vector3f::UnitZ())); //current rotation quaternion direct from the board
 	Quaternionf calibratedAttitude(Eigen::AngleAxisf(0, Vector3f::UnitZ())); //current rotation quaternion, relative to the reference rotation
-	Vector3f accel = Vector3f::Zero(); //current acceleration
-	Vector3f vel = Vector3f::Zero(); //velocity
-	Vector3f pos = Vector3f::Zero(); //position
+	Vector3f rawAccel = Vector3f::Zero(); //current rawAcceleration direct from the sensor
+	Vector3f calibratedAccel= Vector3f::Zero(); //current rawAcceleration multiplied by calibrated attitude
 
 	constexpr int samplesToCalibrate = 200; // one second
 	int stableSamples = 0;
+
+	float inertialVerticalSpeed = 0;
+	float prevBaromAltitude= 0;
+	float baromVerticalSpeed = 0;
+	ring_buffer<float> dVertSpeedBuf(1000, 0);
+	float dVertSpeedAvg;
+	float verticalSpeed = 0;
 
 //#define CALIBRATE_ACCEL_BIAS
 
@@ -56,9 +61,9 @@ namespace DeadReckoner {
 		bool gyroStable = fabs(data.gyrox) < maxDps && fabs(data.gyroy) < maxDps && fabs(data.gyroz) < maxDps;
 		if (!gyroStable) return false;
 		// check magnitude of acceleration is 1g
-		float accel = Vector3f(data.accelx, data.accely, data.accelz).norm();
-		//Serial.printf("accel: %f\n", accel);
-		return fabs(accel - 1) < maxGDiff;
+		float rawAccel = Vector3f(data.accelx, data.accely, data.accelz).norm();
+		//Serial.printf("rawAccel: %f\n", rawAccel);
+		return fabs(rawAccel - 1) < maxGDiff;
 	}
 
 	constexpr int SAMPLES_TO_AVERAGE = 200;
@@ -66,8 +71,8 @@ namespace DeadReckoner {
 
 	// maintains a ring buffer and a rolling average of acceleration data from the past second.
 	Vector3f averageAccel = Vector3f::Zero();
-	void updateAverages(Vector3f accel) {
-		Vector3f multAccel = accel * (1.0 / SAMPLES_TO_AVERAGE);
+	void updateAverages(Vector3f rawAccel) {
+		Vector3f multAccel = rawAccel * (1.0 / SAMPLES_TO_AVERAGE);
 		averageAccel += multAccel;
 		averageAccel -= premultipliedPastAccels.pop();
 		premultipliedPastAccels.put(multAccel);
@@ -76,7 +81,7 @@ namespace DeadReckoner {
 #ifdef CALIBRATE_ACCEL_BIAS
 
 	float calPosXAccelBias(Vector3f posXAccel);
-	Vector3f accelBias(nanf(""), nanf(""), nanf(""));
+	Vector3f rawAccelBias(nanf(""), nanf(""), nanf(""));
 	bool biasCalibrated[6] = { false, false, false, false, false, false };
 
 	// Call when stable to update the bias for the current down axis.
@@ -92,8 +97,8 @@ namespace DeadReckoner {
 				float bias = calPosXAccelBias(posXAccel * sign);
 				if (!isnanf(bias)) {
 
-					if (isnanf(accelBias[i/2])) accelBias[i/2] = bias * sign;
-					else accelBias[i/2] = accelBias[i/2] * 0.5 + bias * sign * 0.5;
+					if (isnanf(rawAccelBias[i/2])) rawAccelBias[i/2] = bias * sign;
+					else rawAccelBias[i/2] = rawAccelBias[i/2] * 0.5 + bias * sign * 0.5;
 
 					Serial.printf("***Calibrated bias for axis %d (%c%c)***\n\n\n\n",
 								  i,
@@ -117,7 +122,7 @@ namespace DeadReckoner {
 		bool allAxesCalibrated = true;
 		for (int i = 0; i < 6; ++i) allAxesCalibrated = allAxesCalibrated && biasCalibrated[i];
 		if (allAxesCalibrated) {
-			Serial.printf("Calibrated accelerometer biases: x=%f y=%f z=%f\n", accelBias[0], accelBias[1], accelBias[2]);
+			Serial.printf("Calibrated rawAccelerometer biases: x=%f y=%f z=%f\n", rawAccelBias[0], rawAccelBias[1], rawAccelBias[2]);
 		}
 	}
 	// If the given vector is pointing along the +X axis, return the bias.
@@ -135,15 +140,16 @@ namespace DeadReckoner {
 	}
 #endif
 
-
 	void calibrateDown();
 
 	void newData(RawImuData data) {
 		rawAttitude = Quaternionf(data.qw, data.qx, data.qy, data.qz);
 		calibratedAttitude = rawAttitude*referenceRotation.inverse();
-		accel[0] = data.accelx;
-		accel[1] = data.accely;
-		accel[2] = data.accelz;
+		rawAccel[0] = data.accelx;
+		rawAccel[1] = data.accely;
+		rawAccel[2] = data.accelz;
+
+		calibratedAccel = calibratedAttitude._transformVector(rawAccel);
 
 		Vector3f down = calibratedAttitude._transformVector(Vector3f::UnitZ());
 
@@ -161,7 +167,7 @@ namespace DeadReckoner {
 			bearing += 270;
 		}
 
-		updateAverages(accel);
+		updateAverages(rawAccel);
 
 		if (checkStability(data)) {
 			stableSamples++;
@@ -179,16 +185,33 @@ namespace DeadReckoner {
 		else digitalWrite(13, LOW);
 	}
 
+	void calcVerticalSpeed(){
+		float curBaromAltitude = getBaromAltitude(); //calculate barometric vertical speed
+		baromVerticalSpeed = curBaromAltitude - prevBaromAltitude;
+		prevBaromAltitude = curBaromAltitude;
+
+		inertialVerticalSpeed += calibratedAccel[2];
+
+		float dVertSpeed = baromVerticalSpeed - inertialVerticalSpeed;
+		dVertSpeedAvg += dVertSpeed * (1/(float)dVertSpeedBuf.capacity());
+
+		if(dVertSpeedBuf.full()){
+			dVertSpeedAvg -= dVertSpeedBuf.pop()*.001;
+		}
+
+		verticalSpeed = inertialVerticalSpeed + dVertSpeedAvg;
+	}
+
 	void printData() {	
-		telem_pose(accel[0], accel[1], accel[2], pitch, roll, bearing);
+		telem_pose(rawAccel[0], rawAccel[1], rawAccel[2], pitch, roll, bearing);
 	}
 
 	// called when we've been stable enough to calibrate
 	void calibrateDown(){ //TODO: Build function to figure out which way is down
-	   referenceRotation = rawAttitude*Quaternionf::FromTwoVectors(accel, Vector3f::UnitZ());
+	   referenceRotation = rawAttitude*Quaternionf::FromTwoVectors(rawAccel, Vector3f::UnitZ());
 	}
 
 	float getRoll() {return roll;}
 	float getPitch() {return pitch;}
-	float getBearing() {return bearing;}
+	float getVerticalSpeed() {return verticalSpeed;}
 }

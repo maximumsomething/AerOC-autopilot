@@ -29,6 +29,4 @@ void airspeedSetup();
 void readAirspeed();
 };
 
-struct TnP {
-
-};
+float getBaromAltitude();
