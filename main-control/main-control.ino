@@ -54,15 +54,17 @@ void loop() {
 		}
 	}
 
-	if (readCounter > 0 && startTime > lastPrintTime + 200000) {
-		DeadReckoner::printData();
-		lastPrintTime = startTime;
-		Serial.printf("ax=%f, ay=%f, az=%f; ", imuData.accelx, imuData.accely, imuData.accelz);
-		Serial.printf("gx=%f, gy=%f, gz=%f\n", imuData.gyrox, imuData.gyroy, imuData.gyroz);
+	if (startTime > lastPrintTime + 200000) {
+		if (readCounter > 0) {
+			DeadReckoner::printData();
+			lastPrintTime = startTime;
+			Serial.printf("ax=%f, ay=%f, az=%f\n", imuData.accelx, imuData.accely, imuData.accelz);
+			//Serial.printf("gx=%f, gy=%f, gz=%f\n", imuData.gyrox, imuData.gyroy, imuData.gyroz);
+		}
 	}
 	// Do this at 25 Hz
 	if (loopCounter % 8 == 0) {
-		//readAltimeter();
+		readAltimeter();
 	}
 	int endTime = micros();
 	// make loop

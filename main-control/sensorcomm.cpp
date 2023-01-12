@@ -394,7 +394,7 @@ void readAltimeter() {
 		float atmospheric = data.pressure / 100.0F;
 		baromAltitude = 44330.0 * (1.0 - pow(atmospheric / 1013.25, 0.1903));
 
-		telem_pressureTemp390(data.pressure / 100.0, data.temperature, altitude);
+		//telem_pressureTemp390(data.pressure / 100.0, data.temperature, baromAltitude);
 
 		/*
 		#ifdef BMP3_FLOAT_COMPENSATION

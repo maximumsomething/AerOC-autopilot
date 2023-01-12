@@ -2,7 +2,7 @@ fakedata uint8_t num1, uint16_t num2
 # morefakestuff float guy, int32_t thing, double wowzer
 # formatstr blah "blah %f %d", float, int32_t
 
-pose float downX, float downY, float downZ, float pitch, float roll, float bearing
+pose float pitch, float roll, float bearing, float verticalSpeed
 pressureTemp390 float pressurehPa, float tempC, float altitudeM
 airspeed float speed, float pressurediff
 

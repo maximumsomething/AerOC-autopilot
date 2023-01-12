@@ -25,7 +25,7 @@ namespace DeadReckoner {
 	using Eigen::Quaternionf;
 
 	// 200 Hz sample rate
-	constexpr float SAMPLE_DELTA = 1.0/200.0;
+	constexpr float SAMPLE_DELTA = 1.0/200.0; // seconds
 
 	float roll = 0; //0 is level, positive is clockwise roll, negative is anticlockwise roll
 	float pitch = 0; //0 is level, positive is upwards, negative is downwards
@@ -36,6 +36,7 @@ namespace DeadReckoner {
 	Quaternionf calibratedAttitude(Eigen::AngleAxisf(0, Vector3f::UnitZ())); //current rotation quaternion, relative to the reference rotation
 	Vector3f rawAccel = Vector3f::Zero(); //current rawAcceleration direct from the sensor
 	Vector3f calibratedAccel= Vector3f::Zero(); //current rawAcceleration multiplied by calibrated attitude
+	float calibratedG = 1.0; // gravity, should be very close to 1g
 
 	constexpr int samplesToCalibrate = 200; // one second
 	int stableSamples = 0;
@@ -141,6 +142,7 @@ namespace DeadReckoner {
 #endif
 
 	void calibrateDown();
+	void calcVerticalSpeed();
 
 	void newData(RawImuData data) {
 		rawAttitude = Quaternionf(data.qw, data.qx, data.qy, data.qz);
@@ -164,6 +166,7 @@ namespace DeadReckoner {
 
 
 		updateAverages(rawAccel);
+		calcVerticalSpeed();
 
 		if (checkStability(data)) {
 			stableSamples++;
@@ -178,30 +181,33 @@ namespace DeadReckoner {
 		}
 	}
 
-	void calcVerticalSpeed(){
+	void calcVerticalSpeed() {
 		float curBaromAltitude = getBaromAltitude(); //calculate barometric vertical speed
-		baromVerticalSpeed = curBaromAltitude - prevBaromAltitude;
+		baromVerticalSpeed = (curBaromAltitude - prevBaromAltitude) / SAMPLE_DELTA;
 		prevBaromAltitude = curBaromAltitude;
 
-		inertialVerticalSpeed += calibratedAccel[2];
+		// Subtract gravity, convert to m/s^2 and integrate
+		inertialVerticalSpeed += (calibratedAccel[2] - calibratedG) * 9.80665 * SAMPLE_DELTA;
 
 		float dVertSpeed = baromVerticalSpeed - inertialVerticalSpeed;
+		dVertSpeedBuf.put(dVertSpeed);
 		dVertSpeedAvg += dVertSpeed * (1/(float)dVertSpeedBuf.capacity());
 
 		if(dVertSpeedBuf.full()){
-			dVertSpeedAvg -= dVertSpeedBuf.pop()*.001;
+			dVertSpeedAvg -= dVertSpeedBuf.pop()*(1/(float)dVertSpeedBuf.capacity());
 		}
 
 		verticalSpeed = inertialVerticalSpeed + dVertSpeedAvg;
 	}
 
 	void printData() {	
-		telem_pose(rawAccel[0], rawAccel[1], rawAccel[2], pitch, roll, bearing);
+		telem_pose(pitch, roll, bearing, verticalSpeed);
 	}
 
 	// called when we've been stable enough to calibrate
 	void calibrateDown(){ //TODO: Build function to figure out which way is down
-	   referenceRotation = rawAttitude*Quaternionf::FromTwoVectors(accel, Vector3f::UnitZ());
+	   referenceRotation = rawAttitude*Quaternionf::FromTwoVectors(averageAccel, Vector3f::UnitZ());
+	   calibratedG = averageAccel.norm();
 	   // light up onboard LED when calibrated
 	   digitalWrite(13, HIGH);
 	}
