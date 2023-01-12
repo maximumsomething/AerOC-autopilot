@@ -43,9 +43,15 @@ void loop() {
 		Serial.printf("Fascinating, we read %d imu values on this loop\n", readCounter);
 	}*/
 	if (readCounter == 0) {
-		bumpImu();
-		Serial.printf("IMU bus reset after %d successful reads\n", successfulImuReads);
-		successfulImuReads = 0;
+		if (successfulImuReads != 0) {
+			bumpImu();
+			Serial.printf("IMU bus reset after %d successful reads\n", successfulImuReads);
+			successfulImuReads = 0;
+		}
+		else {
+			telem_strmessage("WARN: reset IMU\n\n\n");
+			imuSetup();
+		}
 	}
 
 	if (readCounter > 0 && startTime > lastPrintTime + 200000) {
