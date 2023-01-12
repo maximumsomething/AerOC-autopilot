@@ -136,7 +136,7 @@ namespace DeadReckoner {
 
 		Vector3f down = calibratedAttitude._transformVector(Vector3f::UnitZ());
 
-		pitch = abs(atan(down[0]/down[2]))*(180.0/3.141592653589793238463); //c++ trig builtins output in radians
+		pitch = abs(atan(down[0]/down[2]))*(180.0/3.141592653589793238463); //c++ trig builtins output in radians, convert to degrees
 		roll = abs(atan(down[1]/down[2]))*(180.0/3.141592653589793238463);
 		if(down[2] > 0){
 			roll += 90;

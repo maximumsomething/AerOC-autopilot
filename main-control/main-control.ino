@@ -1,3 +1,5 @@
+
+
 #include "telemetry.h"
 #include "sensorcomm.h"
 #include "inertial.h"
@@ -34,6 +36,7 @@ void loop() {
 		imuData = getImuData();
 		DeadReckoner::newData(imuData);
 	}
+  airspeedCalc::readAirspeed();
 	/*if (readCounter != 1) {
 		Serial.printf("Fascinating, we read %d imu values on this loop\n", readCounter);
 	}*/
@@ -47,7 +50,6 @@ void loop() {
 	// Do this at 25 Hz
 	if (loopCounter % 8 == 0) {
 		//readAltimeter();
-		readAirspeed();
 	}
 	int endTime = micros();
 	// make loop

@@ -22,8 +22,10 @@ bool readImu();
 void altimeterSetup();
 void readAltimeter();
 
+namespace airspeedCalc{
 void airspeedSetup();
 void readAirspeed();
+};
 
 struct TnP {
 

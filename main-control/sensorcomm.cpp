@@ -3,6 +3,7 @@
 #include "inertial.h"
 #include "ms4525do.h"
 #include "cmath"
+#include "ringbuffer.h"
 #include <SparkFunMPU9250-DMP.h>
 
 bfs::Ms4525do pres;
@@ -14,7 +15,7 @@ void setupAllComms() {
 	//i2cScan();
 	imuSetup();
 	altimeterSetup();
-	airspeedSetup();
+	airspeedCalc::airspeedSetup();
 }
 
 void usbSerialSetup() {
@@ -388,25 +389,36 @@ void readAltimeter() {
 	}
 }
 
-void airspeedSetup(){
-	pres.Config(&Wire2, 0x28, 1.0f, -1.0f);
+namespace airspeedCalc{
+	ring_buffer<float> airspeedBuffer(100, 0);
 
-	if (!pres.Begin()) {
-    	Serial.println("Error communicating with barometric altimiter");
-	}
-}
-
-void readAirspeed(){
-	const float AIR_DENSITY = 1.204; //kg/m^3. Might calculate en suite later.
-	const float PRESSURE_DIFF_CORRECTION = 91; // to correct for the apparent 91Pa pressure differential that the sensor seems to output at rest
-	float airspeed;
-	if(pres.Read()){	
-		float pressureDiff = abs(pres.pres_pa()) - PRESSURE_DIFF_CORRECTION;
-		airspeed = sqrt(2*pressureDiff/AIR_DENSITY);
-		Serial.printf("Airspeed: %f m/s. Raw pressure differential: %f \n", airspeed, pressureDiff);
-		telem_airspeed(airspeed, pressureDiff);
-	}else{
-		Serial.print("Error communicating with airspeed sensor\n");
+	void airspeedSetup(){
+		pres.Config(&Wire2, 0x28, 1.0f, -1.0f);
+		if (!pres.Begin()) {
+			Serial.println("Error communicating with barometric altimiter");
+		}
 	}
 
+	void readAirspeed(){
+		const float AIR_DENSITY = 1.204; //kg/m^3. Might calculate en suite later.
+		const float PRESSURE_DIFF_CORRECTION = 91; // to correct for the apparent 91Pa pressure differential that the sensor seems to output at rest
+		float airspeed;
+		float avgAirspeed = 0;
+		if(pres.Read()){	
+			float pressureDiff = fabs(pres.pres_pa()); //calculate raw airspeed from pressure differential
+			airspeed = sqrt(2*pressureDiff/AIR_DENSITY);
+
+			airspeedBuffer.put(airspeed); // use a ring buffer to maintain rolling half-second airspeed average
+			avgAirspeed += .01 * airspeed;
+			if(airspeedBuffer.full()){
+				avgAirspeed -= .01*airspeedBuffer.pop();
+			}
+
+			Serial.printf("Airspeed: %f m/s. Raw pressure differential: %f \n", airspeed, pressureDiff);
+			telem_airspeed(avgAirspeed, pressureDiff);
+		}else{
+			Serial.print("Error communicating with airspeed sensor\n");
+		}
+
+	}
 }
