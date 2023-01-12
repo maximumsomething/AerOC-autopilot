@@ -17,7 +17,7 @@ void setupAllComms() {
 	i2cSetup();
 	//i2cScan();
 	imuSetup();
-	//altimeterSetup();
+	altimeterSetup();
 	airspeedCalc::airspeedSetup();
 	// status LED
 	pinMode(13, OUTPUT);
@@ -49,8 +49,8 @@ void i2cSetup() {
 	// start the second I2C bus (BMP390), Wire1, on pins 16 and 17
 	//pinMode(16, INPUT_PULLUP);
 	//pinMode(17, INPUT_PULLUP);
-	//Wire1.begin();
-	//Wire1.setClock(1000000);
+	Wire1.begin();
+	Wire1.setClock(1000000);
 
 	//pinMode(24, INPUT_PULLUP);
 	//pinMode(25, INPUT_PULLUP);
@@ -394,7 +394,7 @@ void readAltimeter() {
 		float atmospheric = data.pressure / 100.0F;
 		baromAltitude = 44330.0 * (1.0 - pow(atmospheric / 1013.25, 0.1903));
 
-		//telem_pressureTemp390(data.pressure / 100.0, data.temperature, altitude);
+		telem_pressureTemp390(data.pressure / 100.0, data.temperature, altitude);
 
 		/*
 		#ifdef BMP3_FLOAT_COMPENSATION
@@ -415,7 +415,9 @@ float getBaromAltitude(){
 	return baromAltitude;
 }
 
-namespace airspeedCalc{
+namespace airspeedCalc {
+	float airspeed = 0;
+
 	ring_buffer<float> pressureBuffer(100, 0);
 	float avgPressureDiff = 0;
 
@@ -428,18 +430,18 @@ namespace airspeedCalc{
 
 	void readAirspeed(){
 		const float AIR_DENSITY = 1.204; //kg/m^3. Might calculate en suite later.
-		const float PRESSURE_DIFF_CORRECTION = 91; // to correct for the apparent 91Pa pressure differential that the sensor seems to output at rest
+		const float PRESSURE_DIFF_CORRECTION = 95.5; // to correct for the apparent 91Pa pressure differential that the sensor seems to output at rest
 
 		if(pres.Read()){	
-			float pressureDiff = fabs(pres.pres_pa()); 
+			float pressureDiff = pres.pres_pa() + PRESSURE_DIFF_CORRECTION; //calculate raw airspeed from pressure differential
 			pressureBuffer.put(pressureDiff); // use a ring buffer to maintain rolling half-second pressure differential average
 			avgPressureDiff += .01 * pressureDiff;
 			if(pressureBuffer.full()){
 				avgPressureDiff -= .01*pressureBuffer.pop();
 			}
 			
-			float airspeed = sqrt(2*avgPressureDiff/AIR_DENSITY); //calculate raw airspeed from pressure differential
-			telem_airspeed(airspeed, avgPressureDiff);
+			airspeed = sqrt(2*fabs(avgPressureDiff)/AIR_DENSITY);
+			//telem_airspeed(airspeed, avgPressureDiff);
 		}else{
 			Serial.print("Error communicating with airspeed sensor\n");
 		}

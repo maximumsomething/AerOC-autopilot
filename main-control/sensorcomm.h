@@ -25,6 +25,7 @@ void altimeterSetup();
 void readAltimeter();
 
 namespace airspeedCalc{
+extern float airspeed;
 void airspeedSetup();
 void readAirspeed();
 };
