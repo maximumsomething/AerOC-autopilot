@@ -18,14 +18,15 @@ struct RawImuData {
 
 RawImuData getImuData();
 bool readImu();
-
 void bumpImu();
+void printGyroBiases();
 
 void altimeterSetup();
 void readAltimeter();
 
 namespace airspeedCalc{
 extern float airspeed;
+extern float avgPressureDiff;
 void airspeedSetup();
 void readAirspeed();
 };

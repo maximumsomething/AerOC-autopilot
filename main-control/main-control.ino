@@ -58,8 +58,9 @@ void loop() {
 		if (readCounter > 0) {
 			DeadReckoner::printData();
 			lastPrintTime = startTime;
-			//Serial.printf("ax=%f, ay=%f, az=%f\n", imuData.accelx, imuData.accely, imuData.accelz);
-			//Serial.printf("gx=%f, gy=%f, gz=%f\n", imuData.gyrox, imuData.gyroy, imuData.gyroz);
+			Serial.printf("ax=%f, ay=%f, az=%f; ", imuData.accelx, imuData.accely, imuData.accelz);
+			Serial.printf("gx=%f, gy=%f, gz=%f\n", imuData.gyrox, imuData.gyroy, imuData.gyroz);
+			telem_airspeed(airspeedCalc::airspeed, airspeedCalc::avgPressureDiff);
 		}
 	}
 	// Do this at 25 Hz

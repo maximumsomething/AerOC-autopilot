@@ -182,15 +182,12 @@ namespace DeadReckoner {
 
 		calibratedAccel = calibratedAttitude._transformVector(rawAccel);
 
-		Vector3f down = calibratedAttitude._transformVector(Vector3f::UnitZ());
-
-		pitch = -atan(down[0]/down[2])*(180.0/M_PI); //c++ trig builtins output in radians, convert to degrees
-		roll = -atan(down[1]/down[2])*(180.0/M_PI);
-		//if(down[2] > 0){
-		//	roll += 90;
-		//}
-
+		//Vector3f down = calibratedAttitude._transformVector(Vector3f::UnitZ());
 		Vector3f forward = calibratedAttitude._transformVector(Vector3f::UnitX());
+		Vector3f left = calibratedAttitude._transformVector(Vector3f::UnitY());
+
+		pitch = -asin(forward.z())*(180.0/M_PI);
+		roll = -asin(left.z())*(180.0/M_PI);
 		bearing = -atan2(forward[1], forward[0])*(180.0/M_PI) + 180;
 
 
@@ -230,7 +227,7 @@ namespace DeadReckoner {
 	// called when we've been stable enough to calibrate
 	void calibrateDown(){ //TODO: Build function to figure out which way is down
 		//if (!downCalibrated) {
-			referenceRotation = rawAttitude*Quaternionf::FromTwoVectors(averageAccel, Vector3f::UnitZ());
+			referenceRotation = rawAttitude*Quaternionf::FromTwoVectors(Vector3f::UnitZ(), averageAccel);
 
 			// light up onboard LED when calibrated
 			digitalWrite(13, HIGH);
