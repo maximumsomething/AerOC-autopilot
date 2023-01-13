@@ -6,7 +6,6 @@
 #include <cmath>
 #include <eigen.h>
 #include <Eigen/Geometry>
-#include <Arduino.h>
 
 /*
  * Terminology:
@@ -31,19 +30,22 @@ namespace DeadReckoner {
 	float pitch = 0; //0 is level, positive is upwards, negative is downwards
 	float bearing = 0; //0 is north, values should be mod 360.
 
-	Quaternionf referenceRotation(Eigen::AngleAxisf(0, Vector3f::UnitZ())); //rotation quaternion equal to what we would read when horizontal and pointed north
-	Quaternionf rawAttitude(Eigen::AngleAxisf(0, Vector3f::UnitZ())); //current rotation quaternion direct from the board
-	Quaternionf calibratedAttitude(Eigen::AngleAxisf(0, Vector3f::UnitZ())); //current rotation quaternion, relative to the reference rotation
+	Quaternionf referenceRotation = Quaternionf::Identity(); //rotation quaternion equal to what we would read when horizontal and pointed north
+	Quaternionf rawAttitude = Quaternionf::Identity(); //current rotation quaternion direct from the board
+	Quaternionf calibratedAttitude = Quaternionf::Identity(); //current rotation quaternion, relative to the reference rotation
 	Vector3f rawAccel = Vector3f::Zero(); //current rawAcceleration direct from the sensor
 	Vector3f calibratedAccel= Vector3f::Zero(); //current rawAcceleration multiplied by calibrated attitude
 	float calibratedG = 1.0; // gravity, should be very close to 1g
 
-	constexpr int samplesToCalibrate = 200; // one second
+	constexpr int samplesToCalibrate = 400; // two seconds
 	int stableSamples = 0;
 
 	float prevBaromAltitude = 0;
 
 	bool downCalibrated = false;
+
+	int samplesGotten = 0;
+	Vector3f startupGyroAvg = Vector3f::Zero();
 
 
 //#define CALIBRATE_ACCEL_BIAS
@@ -175,16 +177,18 @@ namespace DeadReckoner {
 
 	void newData(RawImuData data) {
 		rawAttitude = Quaternionf(data.qw, data.qx, data.qy, data.qz);
-		calibratedAttitude = rawAttitude*referenceRotation.inverse();
-		rawAccel[0] = data.accelx;
-		rawAccel[1] = data.accely;
-		rawAccel[2] = data.accelz;
+		calibratedAttitude = referenceRotation.inverse()*rawAttitude;
+		rawAccel = Vector3f(data.accelx, data.accely, data.accelz);
 
 		calibratedAccel = calibratedAttitude._transformVector(rawAccel);
+
+		//Serial.printf("calibratedAttitude: %f\n", calibratedAttitude.angularDistance(Quaternionf::Identity()) * (180 / M_PI));
 
 		//Vector3f down = calibratedAttitude._transformVector(Vector3f::UnitZ());
 		Vector3f forward = calibratedAttitude._transformVector(Vector3f::UnitX());
 		Vector3f left = calibratedAttitude._transformVector(Vector3f::UnitY());
+
+		//Serial.printf("forward: x=%f, y=%f, z=%f\n", forward.x(), forward.y(), forward.z());
 
 		pitch = -asin(forward.z())*(180.0/M_PI);
 		roll = -asin(left.z())*(180.0/M_PI);
@@ -217,23 +221,33 @@ namespace DeadReckoner {
 			calibrateAccelBias();
 #endif
 		}
+
+		++samplesGotten;
+		// average gyro values for calibration purposes
+		constexpr int GYRO_SAMPLES_TO_AVERAGE = 1000; // 5 seconds, so it will end before automatic calibration starts
+		startupGyroAvg += Vector3f(data.gyrox, data.gyroy, data.gyroz) * (1.0 / GYRO_SAMPLES_TO_AVERAGE);
+		if (samplesGotten == GYRO_SAMPLES_TO_AVERAGE) {
+			Serial.printf("Startup gyro average: x=%f y=%f z=%f\n\n", startupGyroAvg.x(), startupGyroAvg.y(), startupGyroAvg.z());
+		}
 	}
 
 	void printData() {
-		telem_calInertial(calibratedAccel.x(), calibratedAccel.y(), calibratedAccel.z() - calibratedG, calibratedAccel.norm());
+		telem_calInertial(calibratedAccel.x(), calibratedAccel.y(), calibratedAccel.z(), calibratedAccel.norm());
 		telem_pose(pitch, roll, bearing, getVerticalSpeed(), getAltitude());
 	}
 
 	// called when we've been stable enough to calibrate
 	void calibrateDown(){ //TODO: Build function to figure out which way is down
 		//if (!downCalibrated) {
-			referenceRotation = rawAttitude*Quaternionf::FromTwoVectors(Vector3f::UnitZ(), averageAccel);
+			calibratedG = averageAccel.norm();
+			Quaternionf angleFromDown = Quaternionf::FromTwoVectors(Vector3f::UnitZ(), averageAccel);
+			referenceRotation = rawAttitude*angleFromDown;
 
 			// light up onboard LED when calibrated
 			digitalWrite(13, HIGH);
-		//}
-		calibratedG = averageAccel.norm();
-		if (!downCalibrated) Serial.printf("***Calibrated down: calibratedG=%f\n\n\n", calibratedG);
+
+		// //}
+		if (!downCalibrated) Serial.printf("***Calibrated down: calibratedG=%f, angleFromDown=%f\n\n\n", calibratedG, angleFromDown.angularDistance(Quaternionf::Identity()) * 180 / M_PI);
 
 		downCalibrated = true;
 	}
