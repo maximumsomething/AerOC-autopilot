@@ -17,4 +17,5 @@ namespace DeadReckoner {
 	float getPitch();
 	float getBearing();
 	float getVerticalSpeed();
+	float getAltitude();
 };

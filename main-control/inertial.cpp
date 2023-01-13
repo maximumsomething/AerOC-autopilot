@@ -41,12 +41,10 @@ namespace DeadReckoner {
 	constexpr int samplesToCalibrate = 200; // one second
 	int stableSamples = 0;
 
-	float inertialVerticalSpeed = 0;
-	float prevBaromAltitude= 0;
-	float baromVerticalSpeed = 0;
-	ring_buffer<float> dVertSpeedBuf(1000, 0);
-	float dVertSpeedAvg;
-	float verticalSpeed = 0;
+	float prevBaromAltitude = 0;
+
+	bool downCalibrated = false;
+
 
 //#define CALIBRATE_ACCEL_BIAS
 
@@ -57,7 +55,7 @@ namespace DeadReckoner {
 		constexpr float maxGDiff = 0.2;
 #else
 		constexpr float maxDps = 0.5;
-		constexpr float maxGDiff = 0.03;
+		constexpr float maxGDiff = 0.05;
 #endif
 		bool gyroStable = fabs(data.gyrox) < maxDps && fabs(data.gyroy) < maxDps && fabs(data.gyroz) < maxDps;
 		if (!gyroStable) return false;
@@ -67,7 +65,7 @@ namespace DeadReckoner {
 		return fabs(rawAccel - 1) < maxGDiff;
 	}
 
-	constexpr int SAMPLES_TO_AVERAGE = 200;
+	constexpr int SAMPLES_TO_AVERAGE = 400;
 	ring_buffer<Vector3f> premultipliedPastAccels(SAMPLES_TO_AVERAGE, Vector3f::Zero());
 
 	// maintains a ring buffer and a rolling average of acceleration data from the past second.
@@ -141,8 +139,39 @@ namespace DeadReckoner {
 	}
 #endif
 
+
+	// drift corrected integrator
+	class DriftCorrInt {
+		float timeDelta;
+		// Every iteration, new samples are multiplied by this (and old samples by 1 - this)
+		float multiplier;
+
+		//float inertialVal;
+		//float drift;
+	public:
+		float lastVal;
+		// tau is the mean life of a sample
+		// At time t, the sample at t1 is weighted by e^(t-t1)/tau
+		DriftCorrInt(float timeDelta, float tau, float initVal = 0):
+			timeDelta(timeDelta),
+			multiplier(1 - exp(-timeDelta/tau)),
+			lastVal(initVal)
+			{}
+
+		float newVal(float toIntegrate, float noisyTarget) {
+			//inertialVal += toIntegrate * timeDelta;
+			//drift = drift * (1 - multiplier) + (noisyTarget - inertialVal) * multiplier;
+			//return inertialVal + drift;
+			lastVal += toIntegrate * timeDelta;
+			lastVal += multiplier * (noisyTarget - lastVal);
+			return lastVal;
+		}
+	};
+
+	DriftCorrInt verticalSpeedCalculator(SAMPLE_DELTA, 5);
+	DriftCorrInt altitudeCalculator(SAMPLE_DELTA, 5);
+
 	void calibrateDown();
-	void calcVerticalSpeed();
 
 	void newData(RawImuData data) {
 		rawAttitude = Quaternionf(data.qw, data.qx, data.qy, data.qz);
@@ -166,7 +195,19 @@ namespace DeadReckoner {
 
 
 		updateAverages(rawAccel);
-		calcVerticalSpeed();
+
+		// calculate vertical speed & altitude with barometer & accelerometer
+		float curBaromAltitude = getBaromAltitude();
+		float baromVerticalSpeed = (curBaromAltitude - prevBaromAltitude) / SAMPLE_DELTA;
+		prevBaromAltitude = curBaromAltitude;
+
+		// Subtract gravity, convert to m/s^2
+		float accelms = (calibratedAccel[2] - calibratedG) * 9.80665;
+
+		// integrate and correct for drift
+		float verticalSpeed = verticalSpeedCalculator.newVal(accelms, baromVerticalSpeed);
+		altitudeCalculator.newVal(verticalSpeed, curBaromAltitude);
+
 
 		if (checkStability(data)) {
 			stableSamples++;
@@ -181,38 +222,27 @@ namespace DeadReckoner {
 		}
 	}
 
-	void calcVerticalSpeed() {
-		float curBaromAltitude = getBaromAltitude(); //calculate barometric vertical speed
-		baromVerticalSpeed = (curBaromAltitude - prevBaromAltitude) / SAMPLE_DELTA;
-		prevBaromAltitude = curBaromAltitude;
-
-		// Subtract gravity, convert to m/s^2 and integrate
-		inertialVerticalSpeed += (calibratedAccel[2] - calibratedG) * 9.80665 * SAMPLE_DELTA;
-
-		float dVertSpeed = baromVerticalSpeed - inertialVerticalSpeed;
-		dVertSpeedBuf.put(dVertSpeed);
-		dVertSpeedAvg += dVertSpeed * (1/(float)dVertSpeedBuf.capacity());
-
-		if(dVertSpeedBuf.full()){
-			dVertSpeedAvg -= dVertSpeedBuf.pop()*(1/(float)dVertSpeedBuf.capacity());
-		}
-
-		verticalSpeed = inertialVerticalSpeed + dVertSpeedAvg;
-	}
-
-	void printData() {	
-		telem_pose(pitch, roll, bearing, verticalSpeed);
+	void printData() {
+		telem_calInertial(calibratedAccel.x(), calibratedAccel.y(), calibratedAccel.z() - calibratedG, calibratedAccel.norm());
+		telem_pose(pitch, roll, bearing, getVerticalSpeed(), getAltitude());
 	}
 
 	// called when we've been stable enough to calibrate
 	void calibrateDown(){ //TODO: Build function to figure out which way is down
-	   referenceRotation = rawAttitude*Quaternionf::FromTwoVectors(averageAccel, Vector3f::UnitZ());
-	   calibratedG = averageAccel.norm();
-	   // light up onboard LED when calibrated
-	   digitalWrite(13, HIGH);
+		//if (!downCalibrated) {
+			referenceRotation = rawAttitude*Quaternionf::FromTwoVectors(averageAccel, Vector3f::UnitZ());
+
+			// light up onboard LED when calibrated
+			digitalWrite(13, HIGH);
+		//}
+		calibratedG = averageAccel.norm();
+		if (!downCalibrated) Serial.printf("***Calibrated down: calibratedG=%f\n\n\n", calibratedG);
+
+		downCalibrated = true;
 	}
 
 	float getRoll() {return roll;}
 	float getPitch() {return pitch;}
-	float getVerticalSpeed() {return verticalSpeed;}
+	float getVerticalSpeed() { return verticalSpeedCalculator.lastVal; }
+	float getAltitude() { return altitudeCalculator.lastVal; }
 }
