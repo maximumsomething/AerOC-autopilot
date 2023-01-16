@@ -14,30 +14,37 @@ void setup() {
   pinMode(10, OUTPUT);
   pinMode(11, OUTPUT);
   pinMode(12, OUTPUT);
+  pinMode(A0, INPUT);
+  pinMode(A1, INPUT);
+  pinMode(A2, INPUT);
+  pinMode(A3, INPUT);
+  pinMode(A4, INPUT);
+  Serial.begin(115200);
 }
 
-int sourceDutyCycle = 0;
+unsigned long autoSignalTimer = 0;
 boolean onAutopilot = false;
-boolean checkedStatusThisCycle = false;
+boolean checkedStatus = false;
+char outputState = 0;
 
 void loop() {
-  if(digitalRead(6) == HIGH && sourceDutyCycle == 0){
-    sourceDutyCycle = micros();
-    checkedStatusThisCycle = false;
-  }else if(digitalRead(5) == HIGH && micros() - sourceDutyCycle >= 1900){
-    onAutopilot = true;
-    checkedStatusThisCycle = true;
-  }else if(digitalRead(5) == LOW && micros() - sourceDutyCycle < 1900){
-    onAutopilot = false;
-    checkedStatusThisCycle = true;
-  }else if(digitalRead(5) == LOW && checkedStatusThisCycle){
-    sourceDutyCycle = 0;
-  }
-
-  if(onAutopilot){
-  }else{
-    for(int i = 0; i++; i<6){
-      digitalWrite(8 + i, digitalRead(2+ i));
+  if((PIND & 0b10000000) && !checkedStatus){
+    autoSignalTimer = micros();
+    //Serial.println("w");
+    //Serial.println(autoSignalTimer);
+    checkedStatus = true;
+  }else if(!(PIND & 0b10000000) && checkedStatus){
+    if(micros() - autoSignalTimer > 1800){
+      onAutopilot = true;
+    }else{
+      onAutopilot = false;
     }
+    checkedStatus = false;
+  }
+  
+  if(onAutopilot){
+    PORTB = (PORTB & 0b11000000) | (PINC & 0b00111111);
+  }else{
+    PORTB = (PORTB & 0b11000000) | (PIND >> 2);
   }
 }
