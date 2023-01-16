@@ -1,19 +1,58 @@
 #include <Arduino.h>
 #include "inertial.h"
 #include "sensorcomm.h"
+#include <cmath>
 
 
+// constants dependent on the aircraft
+constexpr float MIN_SAFE_SPEED = 5; // todo
+constexpr float MAX_CLIMB_RATE = 1; // todo
+
+// in theory could be set dynamically, but are constants right now
+float targetSpeed = 10;
+
+
+// set when autopilot is enabled
+float targetAltitude;
+
+
+// utility functions
+
+float signf(float num) {
+	if (num > 0) return 1;
+	if (num < 0) return -1;
+	return 0;
+}
 
 void pilotsetup() {
 	// todo: set pin modes
 }
 
+void pilotStart() {
+	targetAltitude = DeadReckoner::getAltitude();
+}
+
+// calculate target vertical speed from target elevation
+// piecewise linear function:
+// if within 2 meters of the desired elevation, 0
+// For the next 3 meters of error, go from 0 to (max climb rate) of desired vertical speed
+float calcTargetVertSpeed() {
+	constexpr float ELEVATION_DEADZONE = 2;
+	constexpr float ELEVATION_MAX_DIFF = 5;
+	float err = targetAltitude - DeadReckoner::getAltitude();
+	if (fabs(err) < ELEVATION_DEADZONE) return 0;
+	else {
+		float amount = (fabs(err) - ELEVATION_DEADZONE) / (ELEVATION_MAX_DIFF - ELEVATION_DEADZONE);
+		float mag = amount * MAX_CLIMB_RATE;
+		return mag * -signf(err);
+	}
+}
+
 void pilotloop() {
 
 
-	// calculate target vertical speed from target elevation
-	// if within 2 meters of the desired elevation, 0
-	// For the next 3 meters of error, go from 0 to (max climb rate) of desired vertical speed
+	float targetVertSpeed = calcTargetVertSpeed();
+
 
 
 	// calculate desired pitch from target vertical speed and current airspeed
