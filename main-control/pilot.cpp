@@ -106,6 +106,10 @@ float calcTargetVertSpeed() {
 
 // PID classes
 kpid pitchControl(0, MAX_PITCH / MAX_CLIMB_RATE, 0, 0); // todo: figure out constants better
+// kp: estimated by manual pilot
+// ki: We want to reach an integral term of 1/3 within 2 seconds
+// ends up being: 1 / ((1/2) * seconds * desiredTerm * (1/kp))
+kpid elevatorControl(0, 1.0/30.0, 1.0 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0, 0);
 
 void pilotloop() {
 
@@ -123,7 +127,7 @@ void pilotloop() {
 
 
 	// control elevators to set pitch
-	pitchControl.update(targetPitch, DeadReckoner::getPitch());
+	elevatorControl.update(targetPitch, DeadReckoner::getPitch());
 
 
 	// control throttle to set airspeed
