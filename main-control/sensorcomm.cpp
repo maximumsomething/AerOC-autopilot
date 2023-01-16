@@ -21,6 +21,8 @@ void setupAllComms() {
 	airspeedCalc::airspeedSetup();
 	// status LED
 	pinMode(13, OUTPUT);
+	// so there isn't a big queue of imu values
+	bumpImu();
 }
 
 void usbSerialSetup() {
@@ -44,7 +46,7 @@ void i2cSetup() {
 
 	Wire.begin();
 	// 1MHz data rate
-	Wire.setClock(400000);
+	Wire.setClock(1000000);
 
 	// start the second I2C bus (BMP390), Wire1, on pins 16 and 17
 	//pinMode(16, INPUT_PULLUP);
@@ -105,9 +107,9 @@ inv_error_t MPU9250_DMP::dmpSetAccelBias(long * bias) {
 }
 
 void imuSetup() {
-	bool wasOn = imu.fifoAvailable();
+	//bool wasOn = imu.fifoAvailable();
 	// Call imu.begin() to verify communication and initialize
-	if (!wasOn && imu.begin() != INV_SUCCESS) {
+	if (/*!wasOn && */imu.begin() != INV_SUCCESS) {
 		while (1) {
 			Serial.println("Unable to communicate with MPU-9250");
 			Serial.println("Check connections, and try again.");
@@ -120,7 +122,7 @@ void imuSetup() {
 	imu.setGyroFSR(2000);                                       // Set gyro to 2000 dps
 	imu.setAccelFSR(8);
 
-	if (!wasOn) {
+	//if (!wasOn) {
 		imu.dmpBegin(DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO |
 		DMP_FEATURE_6X_LP_QUAT |                                // Enable 6-axis quat
 		DMP_FEATURE_GYRO_CAL,                                   // Use gyro calibration
@@ -128,13 +130,13 @@ void imuSetup() {
 		// DMP_FEATURE_LP_QUAT can also be used. It uses the
 		// accelerometer in low-power mode to estimate quat's.
 		// DMP_FEATURE_LP_QUAT and 6X_LP_QUAT are mutually exclusive
-	}
+	//}
 
 	long bias[3];
 	mpu_read_6500_accel_bias(bias);
 	Serial.printf("accel bias: 0: %d 1: %d 2: %d\n", bias[0], bias[1], bias[2]); // units: 1/4096 g ?
 
-	if (!wasOn) {
+	//if (!wasOn) {
 		// for our HiLetGo MPU9255: Calibrated accelerometer biases: x=-0.015164 y=-0.006503 z=0.101141
 		//long newbias[] = {31, 13, -207}; // units: 1/2048 g
 		// For our Gy-91 MPU6500: Calibrated accelerometer biases: x=0.006198 y=-0.001784 z=-0.006231
@@ -150,30 +152,8 @@ void imuSetup() {
 		//long gyrobias[] = { -26, -7, -18 };
 		// This doesn't seem to do anything
 		//dmp_set_gyro_bias(gyrobias);
-	}
+	//}
 
-}
-
-void printIMUData() {
-	// After calling dmpUpdateFifo() the ax, gx, mx, etc. values
-	// are all updated.
-	// Quaternion values are, by default, stored in Q30 long
-	// format. calcQuat turns them into a float between -1 and 1
-	float q0 = imu.calcQuat(imu.qw);
-	float q1 = imu.calcQuat(imu.qx);
-	float q2 = imu.calcQuat(imu.qy);
-	float q3 = imu.calcQuat(imu.qz);
-
-	float ax = imu.calcAccel(imu.ax), ay = imu.calcAccel(imu.ay), az = imu.calcAccel(imu.az);
-	float amag = sqrt(ax*ax + ay*ay + az*az);
-
-	Serial.println("Q: " + String(q0, 4) + ", " + String(q1, 4) + ", " +
-	String(q2, 4) + ", " + String(q3, 4));
-	Serial.println("R/P/Y: " + String(imu.roll) + ", " + String(imu.pitch) +
-	", " + String(imu.yaw));
-	Serial.println("Accel xyz: " + String(ax) + ", " + String(ay) + ", " + String(az) + " Total: " + String(amag));
-	Serial.println("Time: " + String(imu.time) + " ms");
-	Serial.println();
 }
 
 bool readImu() {
