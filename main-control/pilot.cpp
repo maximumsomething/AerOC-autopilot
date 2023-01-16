@@ -10,8 +10,6 @@ constexpr float MAX_CLIMB_RATE = 1; // todo
 
 // in theory could be set dynamically, but are constants right now
 float targetSpeed = 10;
-
-
 // set when autopilot is enabled
 float targetAltitude;
 
@@ -23,6 +21,7 @@ float signf(float num) {
 	if (num < 0) return -1;
 	return 0;
 }
+
 class kpid {
 	public:
 	explicit kpid(float Kc, float Kp, float Ki, float Kd) : Kc(Kc), Kp(Kp), Ki(Ki), Kd(Kd){}
@@ -83,12 +82,12 @@ float calcTargetVertSpeed() {
 	}
 }
 
+float pitchKp, pitchKi;
+kpid pitchController(0, pitchKp, pitchKi, 0);
+
 void pilotloop() {
 
-
 	float targetVertSpeed = calcTargetVertSpeed();
-
-
 
 	// calculate desired pitch from target vertical speed and current airspeed
 	// if (current airspeed - safe airspeed) < val then calculate something from (current airspeed - safe airspeed)
@@ -96,7 +95,9 @@ void pilotloop() {
 	// figure out the PI coefficients later
 
 	// control elevators to set pitch
+	pitchController.update(targetPitch, getPitch());
 
+	
 	// control throttle to set airspeed
 
 	// control alerons to set roll (always 0 for now)
