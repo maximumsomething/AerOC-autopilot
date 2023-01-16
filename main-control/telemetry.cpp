@@ -76,7 +76,7 @@ void reset_telem() {
 void checkAcks() {
 	while (telem_serial->available() > 0) {
 		uint8_t ack = telem_serial->read();
-		Serial.printf("Recieved ack of %d\n", ack);
+		//Serial.printf("Recieved ack of %d\n", ack);
 		if (ack == 0) { // error, pause and reset
 			Serial.println("NACK, resetting telemetry");
 			reset_telem();
@@ -95,7 +95,7 @@ void checkAcks() {
 				// check if we received an ack ahead of the message's sequence number
 				// (actually checks for if it's up to 50 ahead because seq numbers wrap around)
 				int16_t diff = (int16_t) ack - (int16_t) msg->seq;
-				if ((diff > 0 && diff < 50) || diff < (255 - 50)) {
+				if ((diff > 0 && diff < 50) || diff < (50 - 255)) {
 					// queue the message for resending.
 					sentPriorityMessages.erase(sentPriorityMessages.begin() + i);
 					priorityMessages.push_back(msg);
