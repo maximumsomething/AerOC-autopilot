@@ -18,7 +18,8 @@ dstGroundCName = "telemetry_ground/autogen.cpp"
 srcfile = open(srcfilename, "r")
 
 idEnum = ('constexpr uint8_t telem_id_special_strmessage = 0xFF;\n'
-	'enum telem_ids {\n')
+	'enum telem_id {\n'
+	'\ttelem_id_special_invalid,')
 structs = ''
 senders = ''
 sendersH = ''
@@ -26,6 +27,7 @@ lengthChecker = ('int expectedLength(uint8_t id) {\n'
 	'\tswitch (id) {\n')
 reciever = ('void recievePacket(uint8_t id, uint16_t length, void* data) {\n'
 	'\tswitch (id) {\n')
+numIds = 0
 
 srclines = srcfile.readlines()
 for line in srclines:
@@ -37,6 +39,7 @@ for line in srclines:
 	defs = nameanddefs[1]
 
 	idEnum += f'\ttelem_id_{name},\n'
+	numIds += 1
 
 	structdefs = defs.replace(",", ";\n\t")
 
@@ -59,7 +62,7 @@ for line in srclines:
 
 	senders += ((f'void telem_{name}({defs})' ' {\n'
 		   f'\tstruct telem_data_{name} data = {{ {commaDefnames} }};\n'
-		   f'\tsend_telem_packet(telem_id_{name}, sizeof(data), (void *)&data);\n\n'
+		   f'\tdispatch_telem_packet(telem_id_{name}, sizeof(data), (void *)&data);\n\n'
 		   'print_telem_timestamp();\n')
 			+ streamPrint
 			+ '\n}\n')
@@ -80,18 +83,20 @@ for line in srclines:
 				   f'\t\treturn sizeof(telem_data_{name});\n')
 
 
-idEnum += '};\n'
+idEnum += ('};\n'
+	f'constexpr int telem_num_ids = {numIds};\n')
+
 reciever += "\t}\n}\n"
 lengthChecker += ("\tdefault: return -1;\n"
 	"\t}\n}\n")
 
 dstAirH = open(dstAirHName, "w")
 dstAirH.write("#pragma once\n#include <stdint.h>\n")
+dstAirH.write(idEnum)
 dstAirH.write(sendersH)
 
 dstAirC = open(dstAirCName, "w")
 dstAirC.write('#include "telemetry.h"\n')
-dstAirC.write(idEnum)
 dstAirC.write(structs)
 dstAirC.write(senders)
 

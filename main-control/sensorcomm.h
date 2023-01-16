@@ -19,7 +19,6 @@ struct RawImuData {
 RawImuData getImuData();
 bool readImu();
 void bumpImu();
-void printGyroBiases();
 
 void altimeterSetup();
 void readAltimeter();

@@ -2,12 +2,12 @@
 #include "sensorcomm.h"
 #include "telemetry.h"
 #include "inertial.h"
-#include "ms4525do.h"
-#include "cmath"
+#include <cmath>
 #include "ringbuffer.h"
 #include <SparkFunMPU9250-DMP.h>
-
-bfs::Ms4525do pres;
+#include <cstdint>
+#include <i2c_driver.h>
+#include <imx_rt1060/imx_rt1060_i2c_driver.h>
 
 float baromAltitude;
 
@@ -54,8 +54,8 @@ void i2cSetup() {
 
 	//pinMode(24, INPUT_PULLUP);
 	//pinMode(25, INPUT_PULLUP);
-	Wire2.begin();
-	Wire2.setClock(1000000);
+	//Wire2.begin();
+	//Wire2.setClock(1000000);
 }
 
 void i2cScan() {
@@ -104,13 +104,10 @@ inv_error_t MPU9250_DMP::dmpSetAccelBias(long * bias) {
 	return dmp_set_accel_bias(bias);
 }
 
-int g_to_q16(float g) {
-
-}
-
 void imuSetup() {
+	bool wasOn = imu.fifoAvailable();
 	// Call imu.begin() to verify communication and initialize
-	if (imu.begin() != INV_SUCCESS) {
+	if (!wasOn && imu.begin() != INV_SUCCESS) {
 		while (1) {
 			Serial.println("Unable to communicate with MPU-9250");
 			Serial.println("Check connections, and try again.");
@@ -123,27 +120,37 @@ void imuSetup() {
 	imu.setGyroFSR(2000);                                       // Set gyro to 2000 dps
 	imu.setAccelFSR(8);
 
-
-	imu.dmpBegin(DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO |
-	DMP_FEATURE_6X_LP_QUAT |                                // Enable 6-axis quat
-	DMP_FEATURE_GYRO_CAL,                                   // Use gyro calibration
-	200);                                                    // Set DMP FIFO rate to 200 Hz
-	// DMP_FEATURE_LP_QUAT can also be used. It uses the
-	// accelerometer in low-power mode to estimate quat's.
-	// DMP_FEATURE_LP_QUAT and 6X_LP_QUAT are mutually exclusive
+	if (!wasOn) {
+		imu.dmpBegin(DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO |
+		DMP_FEATURE_6X_LP_QUAT |                                // Enable 6-axis quat
+		DMP_FEATURE_GYRO_CAL,                                   // Use gyro calibration
+		200);                                                    // Set DMP FIFO rate to 200 Hz
+		// DMP_FEATURE_LP_QUAT can also be used. It uses the
+		// accelerometer in low-power mode to estimate quat's.
+		// DMP_FEATURE_LP_QUAT and 6X_LP_QUAT are mutually exclusive
+	}
 
 	long bias[3];
 	mpu_read_6500_accel_bias(bias);
 	Serial.printf("accel bias: 0: %d 1: %d 2: %d\n", bias[0], bias[1], bias[2]); // units: 1/4096 g ?
 
-	// for our HiLetGo MPU9255: Calibrated accelerometer biases: x=-0.015164 y=-0.006503 z=0.101141
-	//long newbias[] = {31, 13, -207}; // units: 1/2048 g
-	// For our Gy-91 MPU6500: Calibrated accelerometer biases: x=0.006198 y=-0.001784 z=-0.006231
-	long newbias[] = {-13, 4, 13}; // units: 1/2048 g
-	mpu_set_accel_bias_6500_reg(newbias);
+	if (!wasOn) {
+		// for our HiLetGo MPU9255: Calibrated accelerometer biases: x=-0.015164 y=-0.006503 z=0.101141
+		//long newbias[] = {31, 13, -207}; // units: 1/2048 g
+		// For our Gy-91 MPU6500: Calibrated accelerometer biases: x=0.006198 y=-0.001784 z=-0.006231
+		long newbias[] = {-13, 4, 13}; // units: 1/2048 g
+		mpu_set_accel_bias_6500_reg(newbias);
 
-	mpu_read_6500_accel_bias(bias);
-	Serial.printf("new accel bias: 0: %d 1: %d 2: %d\n", bias[0], bias[1], bias[2]);
+		mpu_read_6500_accel_bias(bias);
+		Serial.printf("new accel bias: 0: %d 1: %d 2: %d\n", bias[0], bias[1], bias[2]);
+
+		// gyro bias for Gy-91 MPU6500
+		// Startup gyro average: x=1.575864 y=0.444146 z=1.108477
+		// not sure if this format is correct
+		//long gyrobias[] = { -26, -7, -18 };
+		// This doesn't seem to do anything
+		//dmp_set_gyro_bias(gyrobias);
+	}
 
 }
 
@@ -200,6 +207,16 @@ RawImuData getImuData() {
 		imu.calcQuat(imu.qw), imu.calcQuat(imu.qx), imu.calcQuat(imu.qy), imu.calcQuat(imu.qz)
 	};
 }
+
+/*
+extern "C" {
+int mpu_read_6500_gyro_bias(long *gyro_bias);
+}
+void printGyroBiases() {
+	long bias[3];
+	mpu_read_6500_gyro_bias(bias);
+	Serial.printf("gyro bias: x: %d y: %d z: %d\n", bias[0], bias[1], bias[2]);
+}*/
 
 #include <bmp3_defs.h>
 #include <bmp3.h>
@@ -415,36 +432,80 @@ float getBaromAltitude(){
 	return baromAltitude;
 }
 
+
 namespace airspeedCalc {
+
 	float airspeed = 0;
 
-	ring_buffer<float> pressureBuffer(100, 0);
+	constexpr int AIRSPEED_ADDRESS = 0x28;
+	constexpr int AIRSPEED_I2C_CLOCK = 1000000;
+	I2CMaster* master = &Master2;
+	IntervalTimer pollingTimer;
+
+	// data conversion
+	constexpr int16_t P_CNT_ = 16383;
+    constexpr int16_t T_CNT_ = 2047;
+	constexpr float p_max = 1.0, p_min = -1.0;
+	// for output type A
+	constexpr float kc = 0.1, kd = 0.8;
+
+	// for converting raw pressure values into airspeed
+	constexpr float AIR_DENSITY = 1.204; //kg/m^3. Might calculate en suite later.
+	constexpr float PRESSURE_DIFF_CORRECTION = 101; // to correct for the apparent 101Pa pressure
+
+
+	constexpr int PRES_BUF_SIZE = 10;
+	ring_buffer<float> pressureBuffer(PRES_BUF_SIZE);
 	float avgPressureDiff = 0;
 
-	void airspeedSetup(){
-		pres.Config(&Wire2, 0x28, 1.0f, -1.0f);
-		if (!pres.Begin()) {
-			Serial.println("Error communicating with barometric altimiter");
+
+	constexpr int SAMPLES_PER_READ = 80; // Allocate enough space to empty the buffer at 25 Hz (target is 50 Hz)
+	constexpr int SAMPLE_SIZE = 4;
+	uint8_t sensor_buf[SAMPLE_SIZE * SAMPLES_PER_READ];
+	volatile int sampleOn = 0;
+
+	// call at up to 2kHz to get values from the airspeed sensor
+	void pollAirspeed() {
+		if (master->finished() && sampleOn < SAMPLES_PER_READ) {
+			master->read_async(AIRSPEED_ADDRESS, sensor_buf + sampleOn * SAMPLE_SIZE, SAMPLE_SIZE, false);
 		}
+		sampleOn++;
+	}
+	void airspeedSetup() {
+		master->begin(AIRSPEED_I2C_CLOCK);
+		pollingTimer.begin(&pollAirspeed, 500);
 	}
 
-	void readAirspeed(){
-		const float AIR_DENSITY = 1.204; //kg/m^3. Might calculate en suite later.
-		const float PRESSURE_DIFF_CORRECTION = 95.5; // to correct for the apparent 91Pa pressure differential that the sensor seems to output at rest
-
-		if(pres.Read()){	
-			float pressureDiff = pres.pres_pa() + PRESSURE_DIFF_CORRECTION; //calculate raw airspeed from pressure differential
-			pressureBuffer.put(pressureDiff); // use a ring buffer to maintain rolling half-second pressure differential average
-			avgPressureDiff += .01 * pressureDiff;
-			if(pressureBuffer.full()){
-				avgPressureDiff -= .01*pressureBuffer.pop();
+	void readAirspeed() {
+		// Average all the reads since readAirspeed() was last called
+		int actualSamples = 0;
+		float totalPresCounts = 0;
+		for (int i = 0; i < SAMPLES_PER_READ && i < sampleOn; ++i) {
+			uint8_t *buf = sensor_buf + i * SAMPLE_SIZE;
+			uint16_t pres_cnts = static_cast<uint16_t>(buf[0] & 0x3F) << 8 | buf[1];
+			uint16_t temp_cnts = static_cast<uint16_t>(buf[2]) << 3 | buf[3] & 0xE0 >> 5;
+			if (pres_cnts != 0) {
+				totalPresCounts += pres_cnts;
+				actualSamples++;
 			}
-			
-			airspeed = sqrt(2*fabs(avgPressureDiff)/AIR_DENSITY);
-			//telem_airspeed(airspeed, avgPressureDiff);
-		}else{
-			Serial.print("Error communicating with airspeed sensor\n");
 		}
+		sampleOn = 0;
 
+		float avgCnts = totalPresCounts / actualSamples;
+		float pres_psi = (avgCnts - kc * P_CNT_) *
+              ((p_max - p_min) / (kd * P_CNT_)) + p_min;
+		float pres_pa =  pres_psi * 0.45359237f * 9.80665f / 0.0254f / 0.0254f;
+		//Serial.printf("pres_psi: %f\n", pres_pa);
+
+		float pressureDiff = pres_pa + PRESSURE_DIFF_CORRECTION; //calculate raw airspeed from pressure differential
+		avgPressureDiff += (1.0 / PRES_BUF_SIZE) * pressureDiff;
+		if(pressureBuffer.full()) {
+			avgPressureDiff -= (1.0 / PRES_BUF_SIZE)*pressureBuffer.pop();
+		}
+		pressureBuffer.put(pressureDiff); // use a ring buffer to maintain rolling half-second pressure differential average
+
+
+		airspeed = sqrt(2*fabs(avgPressureDiff)/AIR_DENSITY);
+		//telem_airspeed(airspeed, avgPressureDiff);
 	}
 }

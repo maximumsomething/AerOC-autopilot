@@ -38,7 +38,6 @@ void loop() {
 		imuData = getImuData();
 		DeadReckoner::newData(imuData);
 	}
-  airspeedCalc::readAirspeed();
 	/*if (readCounter != 1) {
 		Serial.printf("Fascinating, we read %d imu values on this loop\n", readCounter);
 	}*/
@@ -53,7 +52,14 @@ void loop() {
 			imuSetup();
 		}
 	}
-
+	// Do this at 25 Hz
+	if (loopCounter % 8 == 1) {
+		readAltimeter();
+	}
+	// do at 50 Hz
+	if (loopCounter % 4 == 0) {
+		airspeedCalc::readAirspeed();
+	}
 	if (startTime > lastPrintTime + 200000) {
 		if (readCounter > 0) {
 			DeadReckoner::printData();
@@ -63,15 +69,11 @@ void loop() {
 			telem_airspeed(airspeedCalc::airspeed, airspeedCalc::avgPressureDiff);
 		}
 	}
-	// Do this at 25 Hz
-	if (loopCounter % 8 == 0) {
-		readAltimeter();
-	}
 	int endTime = micros();
 	// make loop
 	int delayTime = loopInterval - (endTime - startTime);
 	if (delayTime < 0) {
-		// Serial.print("Warning: loop ran over by "); Serial.print(-delayTime); Serial.println(" microseconds");
+		//Serial.print("Warning: loop ran over by "); Serial.print(-delayTime); Serial.println(" microseconds");
 	}
 	else delayMicroseconds(delayTime);
 }
