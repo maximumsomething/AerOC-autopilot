@@ -5,8 +5,16 @@
 
 
 // constants dependent on the aircraft
-constexpr float MIN_SAFE_SPEED = 5; // todo
+constexpr float MIN_SAFE_AIRSPEED = 5; // todo
+constexpr float AIRSPEED_CORRECTION_START = 8; // todo
+constexpr float AIRSPEED_CORRECTION_FACTOR = 30 / (AIRSPEED_CORRECTION_START - MIN_SAFE_AIRSPEED); // degrees per (m/s)
+
 constexpr float MAX_CLIMB_RATE = 1; // todo
+
+constexpr float MIN_PITCH = -30; // degrees
+constexpr float MAX_PITCH = 30; // degrees
+
+
 
 // in theory could be set dynamically, but are constants right now
 float targetSpeed = 10;
@@ -92,12 +100,18 @@ kpid pitchControl(0, MAX_PITCH / MAX_CLIMB_RATE, 0, 0); // todo: figure out cons
 
 void pilotloop() {
 
-	float targetVertSpeed = calcTargetVertSpeed();
+	const float targetVertSpeed = calcTargetVertSpeed();
 
 	// calculate desired pitch from target vertical speed and current airspeed
 	// if (current airspeed - safe airspeed) < val then calculate something from (current airspeed - safe airspeed)
 	// (PI loop) - something
 	// figure out the PI coefficients later
+	float targetPitch = pitchControl.update(targetVertSpeed, DeadReckoner::getVerticalSpeed());
+	float airspeed = airspeedCalc::airspeed;
+	if (airspeed < AIRSPEED_CORRECTION_START) {
+		targetPitch -= AIRSPEED_CORRECTION_FACTOR * (AIRSPEED_CORRECTION_START - airspeed);
+	}
+
 
 	// control elevators to set pitch
 	pitchController.update(targetPitch, getPitch());
