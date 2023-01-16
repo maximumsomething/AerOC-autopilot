@@ -64,17 +64,19 @@ class kpid {
 		if(firstRun){
 			firstRun = false;
 			return Kc * target + Kp * error;
-		}else return Kc * target + Kp * error + Ki * errInt + Kd * errDeriv;
+		}else {
+			return Kc * target + Kp * error + Ki * errInt + Kd * errDeriv;
+		}
 	}
 
 	private:
 	float Kc, Kp, Ki, Kd;
+	unsigned long timeLastCalled;
 	float target = 0;
 	float error = 0, prevError = 0;
 	float errInt = 0;
 	float errDeriv = 0;
 	float intBound = 0;
-	unsigned long timeLastCalled;
 	bool firstRun = true;
 };
 
