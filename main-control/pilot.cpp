@@ -27,12 +27,17 @@ class kpid {
 	public:
 	explicit kpid(float Kc, float Kp, float Ki, float Kd) : Kc(Kc), Kp(Kp), Ki(Ki), Kd(Kd){}
 
+
 	float update(float newTarget, float input){
 		target = newTarget;
 		return update(input);
 	}
 	float update(float input){
 		unsigned long curTime = micros();
+
+		if (firstRun) timeLastCalled = curTime;
+		firstRun = false;
+
 		unsigned long dt = curTime - timeLastCalled;
 		error = input - target; // calculate current error
 
@@ -51,12 +56,12 @@ class kpid {
 
 	private:
 	float Kc, Kp, Ki, Kd;
-	float target;
-	float error, prevError;
-	float input;
-	float errInt;
-	float errDeriv;
+	float target = 0;
+	float error = 0, prevError = 0;
+	float errInt = 0;
+	float errDeriv = 0;
 	unsigned long timeLastCalled;
+	bool firstRun = true;
 };
 
 void pilotsetup() {
@@ -82,6 +87,9 @@ float calcTargetVertSpeed() {
 		return mag * -signf(err);
 	}
 }
+
+// PID classes
+kpid pitchControl(0, MAX_PITCH / MAX_CLIMB_RATE, 0, 0); // todo: figure out constants better
 
 void pilotloop() {
 
