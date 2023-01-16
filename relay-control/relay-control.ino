@@ -3,18 +3,18 @@
 //pins D6-10: servo output
 
 void setup() {
-  pinMode(2, INPUT);
+  pinMode(2, INPUT); //Receiver inputs
   pinMode(3, INPUT);
   pinMode(4, INPUT);
   pinMode(5, INPUT);
   pinMode(6, INPUT);
-  pinMode(7, INPUT);
-  pinMode(8, OUTPUT);
+  pinMode(7, INPUT); //THIS PIN DETERMINES IF THE AUTOPILOT IS ENGAGED. IT WILL ENGAGE THE AUTOPILOT IF THE DUTY CYCLE IS >1.8ms/1800 microseconds
+  pinMode(8, OUTPUT); //Servo outputs
   pinMode(9, OUTPUT);
   pinMode(10, OUTPUT);
   pinMode(11, OUTPUT);
   pinMode(12, OUTPUT);
-  pinMode(A0, INPUT);
+  pinMode(A0, INPUT); //Autopilot inputs
   pinMode(A1, INPUT);
   pinMode(A2, INPUT);
   pinMode(A3, INPUT);
