@@ -104,13 +104,10 @@ inv_error_t MPU9250_DMP::dmpSetAccelBias(long * bias) {
 	return dmp_set_accel_bias(bias);
 }
 
-int g_to_q16(float g) {
-
-}
-
 void imuSetup() {
+	bool wasOn = imu.fifoAvailable();
 	// Call imu.begin() to verify communication and initialize
-	if (imu.begin() != INV_SUCCESS) {
+	if (!wasOn && imu.begin() != INV_SUCCESS) {
 		while (1) {
 			Serial.println("Unable to communicate with MPU-9250");
 			Serial.println("Check connections, and try again.");
@@ -123,27 +120,37 @@ void imuSetup() {
 	imu.setGyroFSR(2000);                                       // Set gyro to 2000 dps
 	imu.setAccelFSR(8);
 
-
-	imu.dmpBegin(DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO |
-	DMP_FEATURE_6X_LP_QUAT |                                // Enable 6-axis quat
-	DMP_FEATURE_GYRO_CAL,                                   // Use gyro calibration
-	200);                                                    // Set DMP FIFO rate to 200 Hz
-	// DMP_FEATURE_LP_QUAT can also be used. It uses the
-	// accelerometer in low-power mode to estimate quat's.
-	// DMP_FEATURE_LP_QUAT and 6X_LP_QUAT are mutually exclusive
+	if (!wasOn) {
+		imu.dmpBegin(DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO |
+		DMP_FEATURE_6X_LP_QUAT |                                // Enable 6-axis quat
+		DMP_FEATURE_GYRO_CAL,                                   // Use gyro calibration
+		200);                                                    // Set DMP FIFO rate to 200 Hz
+		// DMP_FEATURE_LP_QUAT can also be used. It uses the
+		// accelerometer in low-power mode to estimate quat's.
+		// DMP_FEATURE_LP_QUAT and 6X_LP_QUAT are mutually exclusive
+	}
 
 	long bias[3];
 	mpu_read_6500_accel_bias(bias);
 	Serial.printf("accel bias: 0: %d 1: %d 2: %d\n", bias[0], bias[1], bias[2]); // units: 1/4096 g ?
 
-	// for our HiLetGo MPU9255: Calibrated accelerometer biases: x=-0.015164 y=-0.006503 z=0.101141
-	//long newbias[] = {31, 13, -207}; // units: 1/2048 g
-	// For our Gy-91 MPU6500: Calibrated accelerometer biases: x=0.006198 y=-0.001784 z=-0.006231
-	long newbias[] = {-13, 4, 13}; // units: 1/2048 g
-	mpu_set_accel_bias_6500_reg(newbias);
+	if (!wasOn) {
+		// for our HiLetGo MPU9255: Calibrated accelerometer biases: x=-0.015164 y=-0.006503 z=0.101141
+		//long newbias[] = {31, 13, -207}; // units: 1/2048 g
+		// For our Gy-91 MPU6500: Calibrated accelerometer biases: x=0.006198 y=-0.001784 z=-0.006231
+		long newbias[] = {-13, 4, 13}; // units: 1/2048 g
+		mpu_set_accel_bias_6500_reg(newbias);
 
-	mpu_read_6500_accel_bias(bias);
-	Serial.printf("new accel bias: 0: %d 1: %d 2: %d\n", bias[0], bias[1], bias[2]);
+		mpu_read_6500_accel_bias(bias);
+		Serial.printf("new accel bias: 0: %d 1: %d 2: %d\n", bias[0], bias[1], bias[2]);
+
+		// gyro bias for Gy-91 MPU6500
+		// Startup gyro average: x=1.575864 y=0.444146 z=1.108477
+		// not sure if this format is correct
+		//long gyrobias[] = { -26, -7, -18 };
+		// This doesn't seem to do anything
+		//dmp_set_gyro_bias(gyrobias);
+	}
 
 }
 
@@ -200,6 +207,16 @@ RawImuData getImuData() {
 		imu.calcQuat(imu.qw), imu.calcQuat(imu.qx), imu.calcQuat(imu.qy), imu.calcQuat(imu.qz)
 	};
 }
+
+/*
+extern "C" {
+int mpu_read_6500_gyro_bias(long *gyro_bias);
+}
+void printGyroBiases() {
+	long bias[3];
+	mpu_read_6500_gyro_bias(bias);
+	Serial.printf("gyro bias: x: %d y: %d z: %d\n", bias[0], bias[1], bias[2]);
+}*/
 
 #include <bmp3_defs.h>
 #include <bmp3.h>
