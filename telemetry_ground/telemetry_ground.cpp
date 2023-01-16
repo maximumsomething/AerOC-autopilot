@@ -27,7 +27,7 @@ bool readPacket(FILE* serialIn) {
 
 	if ((header.id != telem_id_special_strmessage)
 		&& header.packetLength != expectedLength(header.id)) {
-		std::cerr << "Error: packet length mismatch: header for " << header.id << " contains "
+		std::cerr << "Error: packet length mismatch: header for " << (int) header.id << " contains "
 		<< header.packetLength << "; expected " << expectedLength(header.id) << std::endl;;
 		return false;
 	}

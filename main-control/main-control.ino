@@ -53,7 +53,10 @@ void loop() {
 			imuSetup();
 		}
 	}
-
+	// Do this at 25 Hz
+	if (loopCounter % 8 == 0) {
+		readAltimeter();
+	}
 	if (startTime > lastPrintTime + 200000) {
 		if (readCounter > 0) {
 			DeadReckoner::printData();
@@ -62,10 +65,6 @@ void loop() {
 			Serial.printf("gx=%f, gy=%f, gz=%f\n", imuData.gyrox, imuData.gyroy, imuData.gyroz);
 			telem_airspeed(airspeedCalc::airspeed, airspeedCalc::avgPressureDiff);
 		}
-	}
-	// Do this at 25 Hz
-	if (loopCounter % 8 == 0) {
-		readAltimeter();
 	}
 	int endTime = micros();
 	// make loop
