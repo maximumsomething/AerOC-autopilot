@@ -462,14 +462,16 @@ namespace airspeedCalc {
 	constexpr int SAMPLES_PER_READ = 80; // Allocate enough space to empty the buffer at 25 Hz (target is 50 Hz)
 	constexpr int SAMPLE_SIZE = 4;
 	uint8_t sensor_buf[SAMPLE_SIZE * SAMPLES_PER_READ];
-	volatile int sampleOn = 0;
+	volatile int sampleIdx = 0;
 
 	// call at up to 2kHz to get values from the airspeed sensor
 	void pollAirspeed() {
-		if (master->finished() && sampleOn < SAMPLES_PER_READ) {
-			master->read_async(AIRSPEED_ADDRESS, sensor_buf + sampleOn * SAMPLE_SIZE, SAMPLE_SIZE, false);
+			if (master->finished()) {
+				if (sampleIdx < SAMPLES_PER_READ) {
+				master->read_async(AIRSPEED_ADDRESS, sensor_buf + sampleIdx * SAMPLE_SIZE, SAMPLE_SIZE, false);
+			}
+			sampleIdx++;
 		}
-		sampleOn++;
 	}
 	void airspeedSetup() {
 		master->begin(AIRSPEED_I2C_CLOCK);
@@ -480,7 +482,7 @@ namespace airspeedCalc {
 		// Average all the reads since readAirspeed() was last called
 		int actualSamples = 0;
 		float totalPresCounts = 0;
-		for (int i = 0; i < SAMPLES_PER_READ && i < sampleOn; ++i) {
+		for (int i = 0; i < SAMPLES_PER_READ && i < sampleIdx; ++i) {
 			uint8_t *buf = sensor_buf + i * SAMPLE_SIZE;
 			uint16_t pres_cnts = static_cast<uint16_t>(buf[0] & 0x3F) << 8 | buf[1];
 			uint16_t temp_cnts = static_cast<uint16_t>(buf[2]) << 3 | buf[3] & 0xE0 >> 5;
@@ -489,7 +491,7 @@ namespace airspeedCalc {
 				actualSamples++;
 			}
 		}
-		sampleOn = 0;
+		sampleIdx = 0;
 
 		float avgCnts = totalPresCounts / actualSamples;
 		float pres_psi = (avgCnts - kc * P_CNT_) *
