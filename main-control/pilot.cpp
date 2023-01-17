@@ -86,14 +86,14 @@ class kpid {
 };
 
 //Servo control instances
-PWMServo ailerons;
-PWMServo elevator;
-PWMServo throttle;
+PWMServo aileronServo;
+PWMServo elevatorServo;
+PWMServo throttleServo;
 
 void pilotsetup() {
-	ailerons.attach(2, 1000, 2000);
-	elevator.attach(3, 1000, 2000);
-	throttle.attach(4, 1000, 2000);
+	aileronServo.attach(2, 1000, 2000);
+	elevatorServo.attach(3, 1000, 2000);
+	throttleServo.attach(4, 1000, 2000);
 }
 
 void pilotStart() {
@@ -153,15 +153,15 @@ void pilotloop() {
 
 	//TODO - yaw
 
-	telem_controlOut(targetVertSpeed, targetPitch, throttle, elevators, ailerons);
-	
+	telem_controlOut(targetVertSpeed, targetPitch, throttleSignal, elevatorSignal, aileronSignal);
+
 	//all control outputs and intermediate crap
 	aileronSignal = (aileronSignal * 90) + 90;
 	elevatorSignal = (elevatorSignal * 90) + 90;
 	throttleSignal *= 180;
 
 	//TODO - telemetry
-	ailerons.write(aileronSignal);
-	elevator.write(elevatorSignal);
-	throttle.write(throttleSignal);
+	aileronServo.write(aileronSignal);
+	elevatorServo.write(elevatorSignal);
+	throttleServo.write(throttleSignal);
 }
