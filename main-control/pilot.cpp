@@ -166,7 +166,7 @@ void pilotLoop() {
 	//all control outputs and intermediate crap
 	aileronSignal = (aileronSignal * 90) + 90;
 	elevatorSignal = (elevatorSignal * 90) + 90;
-	if(isnan(throttleSignal)) throttleSignal = 110;
+	if(std::isnan(throttleSignal)) throttleSignal = 110;
 	else throttleSignal *= 180;
 
 	aileronServo.write(aileronSignal);
