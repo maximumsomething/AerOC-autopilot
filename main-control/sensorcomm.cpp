@@ -363,7 +363,13 @@ void altimeterSetup() {
 	Serial.println("Barometer set up");
 }
 
+int altimeterBadTicks = 0;
+
 void readAltimeter() {
+	if (altimeterBadTicks == 25) {
+		telem_strmessage("ERROR: bad altimeter");
+	}
+
     struct bmp3_status status = { { 0 } };
 	struct bmp3_data data = { 0 };
 	int8_t rslt = bmp3_get_status(&status, &bmpdev);
@@ -372,6 +378,7 @@ void readAltimeter() {
 	if (rslt != BMP3_OK) {
 		// reset barometer (it sometimes dies for some reason???)
 		altimeterSetup();
+		++altimeterBadTicks;
 	}
 	/* Read temperature and pressure data iteratively based on data ready interrupt */
 	else if ((rslt == BMP3_OK) && (status.intr.drdy == BMP3_ENABLE)) {
@@ -388,8 +395,12 @@ void readAltimeter() {
 		rslt = bmp3_get_status(&status, &bmpdev);
 		bmp3_check_rslt("bmp3_get_status", rslt);
 
-		float atmospheric = data.pressure / 100.0F;
-		baromAltitude = 44330.0 * (1.0 - pow(atmospheric / 1013.25, 0.1903));
+		if (rslt == BMP3_OK) {
+			float atmospheric = data.pressure / 100.0F;
+			baromAltitude = 44330.0 * (1.0 - pow(atmospheric / 1013.25, 0.1903));
+			altimeterBadTicks = 0;
+		}
+		else ++altimeterBadTicks;
 
 		//telem_pressureTemp390(data.pressure / 100.0, data.temperature, baromAltitude);
 
@@ -458,6 +469,8 @@ namespace airspeedCalc {
 		pollingTimer.begin(&pollAirspeed, 500);
 	}
 
+	int airspeedMisreadTicks = 0;
+
 	void readAirspeed() {
 		// Average all the reads since readAirspeed() was last called
 		int actualSamples = 0;
@@ -472,6 +485,16 @@ namespace airspeedCalc {
 			}
 		}
 		sampleIdx = 0;
+
+		if (actualSamples == 0) {
+			++airspeedMisreadTicks;
+			if (airspeedMisreadTicks == 25) {
+				// error message, once
+				telem_strmessage("ERROR: airspeed out\n\n");
+			}
+			return;
+		}
+		airspeedMisreadTicks = 0;
 
 		float avgCnts = totalPresCounts / actualSamples;
 		float pres_psi = (avgCnts - kc * P_CNT_) *
