@@ -156,7 +156,7 @@ void sendQueuedMessages() {
 
 		send_telem_packet(msg->id, msg->length, msg->contents);
 		// Remove the node from the list
-		Serial.printf("sent %d\n", msg->id);
+		//Serial.printf("sent %d\n", msg->id);
 		if (msg == queueTail) {
 			//Serial.println("empty queue");
 			queueTail = nullptr;

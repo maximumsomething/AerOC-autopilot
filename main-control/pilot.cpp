@@ -12,14 +12,14 @@ constexpr float MIN_SAFE_AIRSPEED = 4;
 constexpr float AIRSPEED_CORRECTION_START = 6;
 constexpr float AIRSPEED_CORRECTION_FACTOR = 30 / (AIRSPEED_CORRECTION_START - MIN_SAFE_AIRSPEED); // degrees per (m/s)
 
-constexpr float MAX_CLIMB_RATE = 0; // conservative
+constexpr float MAX_CLIMB_RATE = 1; // conservative
 
 constexpr float MIN_PITCH = -30; // degrees
 constexpr float MAX_PITCH = 30; // degrees
 
 constexpr float TOP_SPEED = 12; // Theoretical top airspeed used for calculating throttle
 
-constexpr bool TEST_MODE = true; //Test mode, disables throttle if true
+constexpr bool TEST_MODE = false; //Test mode, disables throttle if true
 
 // in theory could be set dynamically, but are constants right now
 float targetSpeed = 8;
@@ -97,7 +97,7 @@ void pilotSetup() {
 	aileronServo.attach(2, 1000, 2000);
 	elevatorServo.attach(3, 1000, 2000);
 	throttleServo.attach(4, 1000, 2000);
-	throttleServo.attach(5, 1000, 2000);
+	rudderServo.attach(5, 1000, 2000);
 }
 
 void pilotStart() {
@@ -122,19 +122,20 @@ float calcTargetVertSpeed() {
 }
 
 // PID classes
-kpid aileronControl(-1, 1, 0, 1.0/30.0, .25 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0);
+kpid aileronControl(-1, 1, 0, 1.0/30.0, .25 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0, 0.1);
 kpid pitchControl(MIN_PITCH, MAX_PITCH, 0, MAX_PITCH / MAX_CLIMB_RATE, 0, 0, 30); // todo: figure out constants better
 // kp: estimated by manual pilot
 // ki: We want to reach an integral term of 1/3 within 2 seconds
 // ends up being: 1 / ((1/2) * seconds * desiredTerm * (1/kp))
 kpid elevatorControl(-1, 1, 0, 1.0/30.0, 1.0 / ((30.0 * (1.0/3.0)) * 2.0 * (1.0 / 2.0)), 0, 0.3);
 // just kinda guessing at good constants here
-kpid throttleControl(0, 1, 1 / TOP_SPEED, 0.4 / TOP_SPEED, 0, 0);
+kpid throttleControl(0, 1, 1 / TOP_SPEED, 0.7 / TOP_SPEED, 0, 0);
 
 unsigned long lastPilotPrintTime = 0;
 
 void pilotLoop() {
-	const float targetVertSpeed = calcTargetVertSpeed();
+	//const float targetVertSpeed = calcTargetVertSpeed();
+	constexpr float targetVertSpeed = 0;
 
 	// calculate desired pitch from target vertical speed and current airspeed
 	// if (current airspeed - safe airspeed) < val then calculate something from (current airspeed - safe airspeed)
@@ -165,7 +166,7 @@ void pilotLoop() {
 
 	//all control outputs and intermediate crap
 	aileronSignal = (aileronSignal * 90) + 90;
-	elevatorSignal = (elevatorSignal * 90) + 90;
+	elevatorSignal = (elevatorSignal * 70) + 90;
 	if(std::isnan(throttleSignal)) throttleSignal = 110;
 	else throttleSignal *= 180;
 
