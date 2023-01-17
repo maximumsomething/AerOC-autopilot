@@ -3,10 +3,11 @@
 #include "telemetry.h"
 #include "sensorcomm.h"
 #include "inertial.h"
-#include "ringbuffer.h"
+#include "pilot.h"
 
 void setup() {
 	setupAllComms();
+	pilotSetup();
 }
 
 // 200Hz
@@ -41,11 +42,11 @@ void loop() {
 	//Serial.printf("We read %d imu values on this loop\n", tickImuReads);
 	if (tickImuReads == 0) {
 		ticksSinceLastImuRead++;
-		if (ticksSinceLastImuRead >= 10) {
+		if (ticksSinceLastImuRead >= 20) {
 			telem_strmessage("ERROR: reset IMU\n\n\n");
 			imuSetup();
 		}
-		else if (ticksSinceLastImuRead >= 2) {
+		else if (ticksSinceLastImuRead >= 3) {
 			bumpImu();
 			Serial.printf("IMU bus & fifo reset after %d successful reads\n", totalImuReads);
 			totalImuReads = 0;
@@ -56,6 +57,8 @@ void loop() {
 	if (loopCounter % 2 == 1) {
 		readAltimeter();
 	}
+
+	pilotLoop();
 	//Serial.println(micros() - startTime);
 	// do at 50 Hz
 	airspeedCalc::readAirspeed();
@@ -64,8 +67,8 @@ void loop() {
 		if (tickImuReads > 0) {
 			DeadReckoner::printData();
 			lastPrintTime = startTime;
-			Serial.printf("ax=%f, ay=%f, az=%f; ", imuData.accelx, imuData.accely, imuData.accelz);
-			Serial.printf("gx=%f, gy=%f, gz=%f\n", imuData.gyrox, imuData.gyroy, imuData.gyroz);
+			//Serial.printf("ax=%f, ay=%f, az=%f; ", imuData.accelx, imuData.accely, imuData.accelz);
+			//Serial.printf("gx=%f, gy=%f, gz=%f\n", imuData.gyrox, imuData.gyroy, imuData.gyroz);
 			telem_airspeed(airspeedCalc::airspeed, airspeedCalc::avgPressureDiff);
 		}
 	}
@@ -74,7 +77,7 @@ void loop() {
 	// make loop
 	int delayTime = loopInterval - (endTime - startTime);
 	if (delayTime < 0) {
-		//Serial.print("Warning: loop ran over by "); Serial.print(-delayTime); Serial.println(" microseconds");
+		Serial.print("Warning: loop ran over by "); Serial.print(-delayTime); Serial.println(" microseconds");
 	}
 	else {
 		delayMicroseconds(delayTime);

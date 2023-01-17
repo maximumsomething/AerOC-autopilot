@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "pilot.h"
 #include "inertial.h"
 #include "sensorcomm.h"
 #include "telemetry.h"
@@ -92,7 +93,7 @@ PWMServo elevatorServo;
 PWMServo throttleServo;
 PWMServo rudderServo;
 
-void pilotsetup() {
+void pilotSetup() {
 	aileronServo.attach(2, 1000, 2000);
 	elevatorServo.attach(3, 1000, 2000);
 	throttleServo.attach(4, 1000, 2000);
@@ -114,6 +115,7 @@ float calcTargetVertSpeed() {
 	if (fabs(err) < ELEVATION_DEADZONE) return 0;
 	else {
 		float amount = (fabs(err) - ELEVATION_DEADZONE) / (ELEVATION_MAX_DIFF - ELEVATION_DEADZONE);
+		amount = fmin(amount, 1);
 		float mag = amount * MAX_CLIMB_RATE;
 		return mag * -signf(err);
 	}
@@ -129,8 +131,9 @@ kpid elevatorControl(-1, 1, 0, 1.0/30.0, 1.0 / ((30.0 * (1.0/3.0)) * 2.0 * (1.0 
 // just kinda guessing at good constants here
 kpid throttleControl(0, 1, 1 / TOP_SPEED, 0.4 / TOP_SPEED, 0, 0);
 
+unsigned long lastPilotPrintTime = 0;
 
-void pilotloop() {
+void pilotLoop() {
 	const float targetVertSpeed = calcTargetVertSpeed();
 
 	// calculate desired pitch from target vertical speed and current airspeed
@@ -155,14 +158,17 @@ void pilotloop() {
 
 	//TODO - yaw
 
-	telem_controlOut(targetVertSpeed, targetPitch, throttleSignal, elevatorSignal, aileronSignal);
+	if (millis() - lastPilotPrintTime > 200) {
+		telem_controlOut(targetVertSpeed, targetPitch, throttleSignal, elevatorSignal, aileronSignal);
+		lastPilotPrintTime = millis();
+	}
 
 	//all control outputs and intermediate crap
 	aileronSignal = (aileronSignal * 90) + 90;
 	elevatorSignal = (elevatorSignal * 90) + 90;
 	throttleSignal *= 180;
 
-	//TODO - telemetry
+
 	aileronServo.write(aileronSignal);
 	elevatorServo.write(elevatorSignal);
 	if(!TEST_MODE) throttleServo.write(throttleSignal);

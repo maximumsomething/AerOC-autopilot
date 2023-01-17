@@ -142,17 +142,33 @@ void sendQueuedMessages() {
 
 		sentPriorityMessages.push_back(msg);
 	}
+	/*Serial.print("queue state:");
+	for (MessageNode* msg = queueHead; msg != nullptr; msg = msg->newer) {
+		Serial.printf(" %d", msg->id);
+	}
+	Serial.println();*/
 	while (queueHead != nullptr) {
-		if (!canSendMessage(queueHead->length)) return;
+		MessageNode* msg = queueHead;
+		if (!canSendMessage(msg->length)) {
+			//Serial.printf("not sending %d\n", msg->id);
+			return;
+		}
 
-		send_telem_packet(queueHead->id, queueHead->length, queueHead->contents);
+		send_telem_packet(msg->id, msg->length, msg->contents);
 		// Remove the node from the list
-		queueHead->older = nullptr; queueHead->newer = nullptr;
-		queueHead = queueHead->newer;
+		Serial.printf("sent %d\n", msg->id);
+		if (msg == queueTail) {
+			//Serial.println("empty queue");
+			queueTail = nullptr;
+		}
+		queueHead = msg->newer;
+		if (queueHead) queueHead->older = nullptr;
+		msg->older = nullptr; msg->newer = nullptr;
 	}
 }
 
 void dispatch_telem_packet(uint8_t id, uint16_t length, const void* data) {
+	//Serial.printf("queue %d\n", id);
 	// Every time we enter telemetry code, check to make sure we're keeping up
 	checkAcks();
 
@@ -168,24 +184,42 @@ void dispatch_telem_packet(uint8_t id, uint16_t length, const void* data) {
 	}
 	else {
 
-		if (canSendMessage(length)) {
+		/*if (queueHead == nullptr && canSendMessage(length)) {
 			send_telem_packet(id, length, data);
-		}
+		}*/
 
 		// enqueue packet, replacing any previously queued packet of this message type
 		MessageNode* node = getQueuedMessage(id);
 		// remove the node from the list
 		if (node->newer && node->older) {
+			//Serial.printf("stitching %d (%x) to %d (%x) around %d\n", node->older->id, node->older, node->newer->id, node->newer, id);
+			/*if (node->newer == node->older) {
+				Serial.println("lul what?");
+				return;
+			}*/
 			node->older->newer = node->newer;
 			node->newer->older = node->older;
 		}
-		else if (node->newer) queueHead = node->newer;
-		else if (node->older) queueTail = node->older;
+		else if (queueHead == node) { // node is at the head
+			queueHead = node->newer;
+			if (queueHead) queueHead->older = nullptr;
+		}
+		else if (queueTail == node) { // node is at the tail
+			queueTail = node->older;
+			if (queueTail) queueTail->newer = nullptr;
+		}
+		else if (queueHead == node && queueTail == node) { // node is the only node
+			//Serial.println("only node");
+			queueTail = nullptr;
+			queueHead = nullptr;
+		}
 
 		// add at the tail
 		node->older = queueTail;
-		queueTail = node;
 		node->newer = nullptr;
+		if (queueTail) queueTail->newer = node;
+		if (queueHead == nullptr) queueHead = node;
+		queueTail = node;
 
 		// Since messages are always the same length, allocate the contents only once
 		if (node->contents == nullptr) node->contents = malloc(length);
