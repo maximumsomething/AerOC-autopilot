@@ -7,21 +7,20 @@
 
 
 // constants dependent on the aircraft
-constexpr float MIN_SAFE_AIRSPEED = 5; // todo
-constexpr float AIRSPEED_CORRECTION_START = 8; // todo
+constexpr float MIN_SAFE_AIRSPEED = 4;
+constexpr float AIRSPEED_CORRECTION_START = 6;
 constexpr float AIRSPEED_CORRECTION_FACTOR = 30 / (AIRSPEED_CORRECTION_START - MIN_SAFE_AIRSPEED); // degrees per (m/s)
 
-constexpr float MAX_CLIMB_RATE = 1; // todo
+constexpr float MAX_CLIMB_RATE = 1; // conservative
 
 constexpr float MIN_PITCH = -30; // degrees
 constexpr float MAX_PITCH = 30; // degrees
 
-constexpr float TOP_SPEED = 15; // todo
-
+constexpr float TOP_SPEED = 12; // theoretical top airspeed used for calculating throttle
 
 
 // in theory could be set dynamically, but are constants right now
-float targetSpeed = 10;
+float targetSpeed = 8;
 // set when autopilot is enabled
 float targetAltitude;
 
