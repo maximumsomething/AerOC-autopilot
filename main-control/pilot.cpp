@@ -14,6 +14,8 @@ constexpr float MAX_CLIMB_RATE = 1; // todo
 constexpr float MIN_PITCH = -30; // degrees
 constexpr float MAX_PITCH = 30; // degrees
 
+constexpr float TOP_SPEED = 15; // todo
+
 
 
 // in theory could be set dynamically, but are constants right now
@@ -104,13 +106,15 @@ float calcTargetVertSpeed() {
 }
 
 // PID classes
-kpid pitchControl(0, MAX_PITCH / MAX_CLIMB_RATE, 0, 0); // todo: figure out constants better
+kpid pitchControl(0, MAX_PITCH / MAX_CLIMB_RATE, 0, 0, 30); // todo: figure out constants better
 // kp: estimated by manual pilot
 // ki: We want to reach an integral term of 1/3 within 2 seconds
 // ends up being: 1 / ((1/2) * seconds * desiredTerm * (1/kp))
-kpid elevatorControl(0, 1.0/30.0, 1.0 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0, 0);
+kpid elevatorControl(0, 1.0/30.0, 1.0 / ((30.0 * (1.0/3.0)) * 2.0 * (1.0 / 2.0)), 0, 0.3);
+// just kinda guessing at good constants here
+kpid throttleControl(1 / TOP_SPEED, 0.4 / TOP_SPEED, 0, 0);
 
-kpid aeleronControl(0, 1.0/30.0, .25 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0));
+kpid aileronControl(0, 1.0/30.0, .25 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0);
 
 void pilotloop() {
 
@@ -127,14 +131,15 @@ void pilotloop() {
 	}
 
 	// control elevators to set pitch
-	elevatorControl.update(targetPitch, DeadReckoner::getPitch());
+	float elevators = elevatorControl.update(targetPitch, DeadReckoner::getPitch());
 
 
 	// control throttle to set airspeed
+	float throttle = throttleControl.update(targetSpeed, airspeed);
 	
 
-	// control alerons to set roll (always 0 for now)
-	aeleronControl.update(0, DeadReckoner::getRoll());
+	// control aileron to set roll (always 0 for now)
+	aileronControl.update(0, DeadReckoner::getRoll());
 
 	// telemetry all control outputs and intermediate crap
 }
