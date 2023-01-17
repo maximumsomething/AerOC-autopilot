@@ -2,6 +2,7 @@
 #include "inertial.h"
 #include "sensorcomm.h"
 #include <cmath>
+#include <PWMServo.h>
 
 
 // constants dependent on the aircraft
@@ -81,8 +82,15 @@ class kpid {
 	bool firstRun = true;
 };
 
+//Servo control instances
+PWMServo ailerons;
+PWMServo elevator;
+PWMServo throttle;
+
 void pilotsetup() {
-	// todo: set pin modes
+	ailerons.attach(2, 1000, 2000);
+	elevator.attach(3, 1000, 2000);
+	throttle.attach(4, 1000, 2000);
 }
 
 void pilotStart() {
@@ -131,15 +139,26 @@ void pilotloop() {
 	}
 
 	// control elevators to set pitch
-	float elevators = elevatorControl.update(targetPitch, DeadReckoner::getPitch());
+	float elevatorSignal = elevatorControl.update(targetPitch, DeadReckoner::getPitch());
 
 
 	// control throttle to set airspeed
-	float throttle = throttleControl.update(targetSpeed, airspeed);
+	float throttleSignal = throttleControl.update(targetSpeed, airspeed);
 	
 
 	// control aileron to set roll (always 0 for now)
-	aileronControl.update(0, DeadReckoner::getRoll());
+	float aileronSignal = aileronControl.update(0, DeadReckoner::getRoll());
 
-	// telemetry all control outputs and intermediate crap
+	//TODO - yaw
+	
+	//all control outputs and intermediate crap
+	aileronSignal = (aileronSignal * 90) + 90;
+	elevatorSignal = (elevatorSignal * 90) + 90;
+	throttleSignal *= 180;
+
+	//TODO - telemetry
+
+	ailerons.write(aileronSignal);
+	elevator.write(elevatorSignal);
+	throttle.write(throttleSignal);
 }
