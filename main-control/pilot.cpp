@@ -70,7 +70,7 @@ class kpid {
 
 		float outVal = Kc * target + Kp * error + Ki * errInt + Kd * errDeriv;
 		if (outVal < outMin) outVal = outMin;
-		if (outVal < outMax) outVal = outMax;
+		if (outVal > outMax) outVal = outMax;
 		return outVal;
 	}
 
