@@ -32,9 +32,11 @@ float signf(float num) {
 
 class kpid {
 	public:
-	explicit kpid(float Kc, float Kp, float Ki, float Kd) : Kc(Kc), Kp(Kp), Ki(Ki), Kd(Kd){}
+	kpid(float Kc, float Kp, float Ki, float Kd) : Kc(Kc), Kp(Kp), Ki(Ki), Kd(Kd) {}
 
-	kpid(float Kc, float Kp, float Ki, float Kd, float intBound) : Kc(Kc), Kp(Kp), Ki(Ki), Kd(Kd), intBound(intBound){}
+	kpid(float Kc, float Kp, float Ki, float Kd, float outBound) : kpid(Kc, Kp, Ki, Kd) {
+		intBound = outBound / Ki;
+	}
 
 	float update(float newTarget, float input){
 		target = newTarget;
@@ -43,30 +45,27 @@ class kpid {
 	float update(float input){
 		unsigned long curTime = micros();
 
-		if (firstRun) timeLastCalled = curTime;
-
 		unsigned long dt = curTime - timeLastCalled;
 		error = input - target; // calculate current error
 
-		if(Ki != 0){
-			errInt += error * (dt / 1000000.0);
-			if((intBound != 0) && (errInt > intBound)){
-				errInt = intBound;
+		if (!firstRun) {
+			if(Ki != 0){
+				errInt += error * (dt / 1000000.0);
+				if((intBound != 0) && (fabs(errInt) > intBound)){
+					errInt = intBound * signf(errInt);
+				}
 			}
-		}
-		if(Kd != 0){
-			errDeriv = (error - prevError)/(dt / 1000000.0);
+			if(Kd != 0){
+				errDeriv = (error - prevError)/(dt / 1000000.0);
+			}
 		}
 
 		timeLastCalled = curTime;
 		prevError = error;
+		firstRun = false;
 
-		if(firstRun){
-			firstRun = false;
-			return Kc * target + Kp * error;
-		}else {
-			return Kc * target + Kp * error + Ki * errInt + Kd * errDeriv;
-		}
+		return Kc * target + Kp * error + Ki * errInt + Kd * errDeriv;
+
 	}
 
 	private:
