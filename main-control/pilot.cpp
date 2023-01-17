@@ -166,8 +166,8 @@ void pilotLoop() {
 	//all control outputs and intermediate crap
 	aileronSignal = (aileronSignal * 90) + 90;
 	elevatorSignal = (elevatorSignal * 90) + 90;
-	throttleSignal *= 180;
-
+	if(isnan(throttleSignal)) throttleSignal = 110;
+	else throttleSignal *= 180;
 
 	aileronServo.write(aileronSignal);
 	elevatorServo.write(elevatorSignal);
