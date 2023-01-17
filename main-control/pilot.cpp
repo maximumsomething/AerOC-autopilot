@@ -18,6 +18,7 @@ constexpr float MAX_PITCH = 30; // degrees
 
 constexpr float TOP_SPEED = 15; // todo
 
+constexpr bool TEST_MODE = true; //Test mode, disables throttle if true
 
 
 // in theory could be set dynamically, but are constants right now
@@ -164,5 +165,9 @@ void pilotloop() {
 	//TODO - telemetry
 	ailerons.write(aileronSignal);
 	elevator.write(elevatorSignal);
-	throttle.write(throttleSignal);
+	if(!TEST_MODE){
+		throttle.write(throttleSignal);
+	}else{
+		throttle.write(0);
+	}
 }
