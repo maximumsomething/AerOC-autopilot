@@ -110,6 +110,8 @@ kpid pitchControl(0, MAX_PITCH / MAX_CLIMB_RATE, 0, 0); // todo: figure out cons
 // ends up being: 1 / ((1/2) * seconds * desiredTerm * (1/kp))
 kpid elevatorControl(0, 1.0/30.0, 1.0 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0, 0);
 
+kpid aeleronControl(0, 1.0/30.0, .25 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0));
+
 void pilotloop() {
 
 	const float targetVertSpeed = calcTargetVertSpeed();
@@ -124,14 +126,15 @@ void pilotloop() {
 		targetPitch -= AIRSPEED_CORRECTION_FACTOR * (AIRSPEED_CORRECTION_START - airspeed);
 	}
 
-
 	// control elevators to set pitch
 	elevatorControl.update(targetPitch, DeadReckoner::getPitch());
 
 
 	// control throttle to set airspeed
+	
 
 	// control alerons to set roll (always 0 for now)
+	aeleronControl.update(0, DeadReckoner::getRoll());
 
 	// telemetry all control outputs and intermediate crap
 }
