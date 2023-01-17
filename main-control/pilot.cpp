@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "inertial.h"
 #include "sensorcomm.h"
+#include "telemetry.h"
 #include <cmath>
 
 
@@ -139,7 +140,9 @@ void pilotloop() {
 	
 
 	// control aileron to set roll (always 0 for now)
-	aileronControl.update(0, DeadReckoner::getRoll());
+	float ailerons = aileronControl.update(0, DeadReckoner::getRoll());
+
+	telem_controlOut(targetVertSpeed, targetPitch, throttle, elevators, ailerons);
 
 	// telemetry all control outputs and intermediate crap
 }
