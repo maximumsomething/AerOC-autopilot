@@ -7,22 +7,21 @@
 
 
 // constants dependent on the aircraft
-constexpr float MIN_SAFE_AIRSPEED = 5; // todo
-constexpr float AIRSPEED_CORRECTION_START = 8; // todo
+constexpr float MIN_SAFE_AIRSPEED = 4;
+constexpr float AIRSPEED_CORRECTION_START = 6;
 constexpr float AIRSPEED_CORRECTION_FACTOR = 30 / (AIRSPEED_CORRECTION_START - MIN_SAFE_AIRSPEED); // degrees per (m/s)
 
-constexpr float MAX_CLIMB_RATE = 1; // todo
+constexpr float MAX_CLIMB_RATE = 1; // conservative
 
 constexpr float MIN_PITCH = -30; // degrees
 constexpr float MAX_PITCH = 30; // degrees
 
-constexpr float TOP_SPEED = 15; // todo
+constexpr float TOP_SPEED = 12; // Theoretical top airspeed used for calculating throttle
 
 constexpr bool TEST_MODE = true; //Test mode, disables throttle if true
 
-
 // in theory could be set dynamically, but are constants right now
-float targetSpeed = 10;
+float targetSpeed = 8;
 // set when autopilot is enabled
 float targetAltitude;
 
@@ -88,14 +87,14 @@ class kpid {
 };
 
 //Servo control instances
-PWMServo ailerons;
-PWMServo elevator;
-PWMServo throttle;
+PWMServo aileronServo;
+PWMServo elevatorServo;
+PWMServo throttleServo;
 
 void pilotsetup() {
-	ailerons.attach(2, 1000, 2000);
-	elevator.attach(3, 1000, 2000);
-	throttle.attach(4, 1000, 2000);
+	aileronServo.attach(2, 1000, 2000);
+	elevatorServo.attach(3, 1000, 2000);
+	throttleServo.attach(4, 1000, 2000);
 }
 
 void pilotStart() {
@@ -155,19 +154,19 @@ void pilotloop() {
 
 	//TODO - yaw
 
-	telem_controlOut(targetVertSpeed, targetPitch, throttle, elevators, ailerons);
-	
+	telem_controlOut(targetVertSpeed, targetPitch, throttleSignal, elevatorSignal, aileronSignal);
+
 	//all control outputs and intermediate crap
 	aileronSignal = (aileronSignal * 90) + 90;
 	elevatorSignal = (elevatorSignal * 90) + 90;
 	throttleSignal *= 180;
 
 	//TODO - telemetry
-	ailerons.write(aileronSignal);
-	elevator.write(elevatorSignal);
+	aileronServo.write(aileronSignal);
+	elevatorServo.write(elevatorSignal);
 	if(!TEST_MODE){
-		throttle.write(throttleSignal);
+		throttleServo.write(throttleSignal);
 	}else{
-		throttle.write(0);
+		throttleServo.write(0);
 	}
 }
