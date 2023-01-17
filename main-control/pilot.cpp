@@ -129,7 +129,6 @@ kpid throttleControl(0, 1, 1 / TOP_SPEED, 0.4 / TOP_SPEED, 0, 0);
 kpid aileronControl(-1, 1, 0, 1.0/30.0, .25 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0);
 
 void pilotloop() {
-
 	const float targetVertSpeed = calcTargetVertSpeed();
 
 	// calculate desired pitch from target vertical speed and current airspeed
