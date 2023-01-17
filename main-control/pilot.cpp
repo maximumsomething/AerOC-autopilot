@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "inertial.h"
 #include "sensorcomm.h"
+#include "telemetry.h"
 #include <cmath>
 #include <PWMServo.h>
 
@@ -35,9 +36,9 @@ float signf(float num) {
 
 class kpid {
 	public:
-	kpid(float Kc, float Kp, float Ki, float Kd) : Kc(Kc), Kp(Kp), Ki(Ki), Kd(Kd) {}
+	kpid(float min, float max, float Kc, float Kp, float Ki, float Kd) : outMin(min), outMax(max), Kc(Kc), Kp(Kp), Ki(Ki), Kd(Kd), intBound((max - min) / Ki) {}
 
-	kpid(float Kc, float Kp, float Ki, float Kd, float outBound) : kpid(Kc, Kp, Ki, Kd) {
+	kpid(float min, float max, float Kc, float Kp, float Ki, float Kd, float outBound) : kpid(min, max, Kc, Kp, Ki, Kd) {
 		intBound = outBound / Ki;
 	}
 
@@ -67,11 +68,14 @@ class kpid {
 		prevError = error;
 		firstRun = false;
 
-		return Kc * target + Kp * error + Ki * errInt + Kd * errDeriv;
-
+		float outVal = Kc * target + Kp * error + Ki * errInt + Kd * errDeriv;
+		if (outVal < outMin) outVal = outMin;
+		if (outVal < outMax) outVal = outMax;
+		return outVal;
 	}
 
 	private:
+	float outMin, outMax;
 	float Kc, Kp, Ki, Kd;
 	unsigned long timeLastCalled;
 	float target = 0;
@@ -114,15 +118,15 @@ float calcTargetVertSpeed() {
 }
 
 // PID classes
-kpid pitchControl(0, MAX_PITCH / MAX_CLIMB_RATE, 0, 0, 30); // todo: figure out constants better
+kpid pitchControl(MIN_PITCH, MAX_PITCH, 0, MAX_PITCH / MAX_CLIMB_RATE, 0, 0, 30); // todo: figure out constants better
 // kp: estimated by manual pilot
 // ki: We want to reach an integral term of 1/3 within 2 seconds
 // ends up being: 1 / ((1/2) * seconds * desiredTerm * (1/kp))
-kpid elevatorControl(0, 1.0/30.0, 1.0 / ((30.0 * (1.0/3.0)) * 2.0 * (1.0 / 2.0)), 0, 0.3);
+kpid elevatorControl(-1, 1, 0, 1.0/30.0, 1.0 / ((30.0 * (1.0/3.0)) * 2.0 * (1.0 / 2.0)), 0, 0.3);
 // just kinda guessing at good constants here
-kpid throttleControl(1 / TOP_SPEED, 0.4 / TOP_SPEED, 0, 0);
+kpid throttleControl(0, 1, 1 / TOP_SPEED, 0.4 / TOP_SPEED, 0, 0);
 
-kpid aileronControl(0, 1.0/30.0, .25 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0);
+kpid aileronControl(-1, 1, 0, 1.0/30.0, .25 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0);
 
 void pilotloop() {
 
@@ -137,19 +141,20 @@ void pilotloop() {
 	if (airspeed < AIRSPEED_CORRECTION_START) {
 		targetPitch -= AIRSPEED_CORRECTION_FACTOR * (AIRSPEED_CORRECTION_START - airspeed);
 	}
+	if (targetPitch < MIN_PITCH) targetPitch = MIN_PITCH;
 
 	// control elevators to set pitch
-	float elevatorSignal = elevatorControl.update(targetPitch, DeadReckoner::getPitch());
-
+	float elevatorSignal = -elevatorControl.update(targetPitch, DeadReckoner::getPitch());
 
 	// control throttle to set airspeed
 	float throttleSignal = throttleControl.update(targetSpeed, airspeed);
 	
-
 	// control aileron to set roll (always 0 for now)
 	float aileronSignal = aileronControl.update(0, DeadReckoner::getRoll());
 
 	//TODO - yaw
+
+	telem_controlOut(targetVertSpeed, targetPitch, throttle, elevators, ailerons);
 	
 	//all control outputs and intermediate crap
 	aileronSignal = (aileronSignal * 90) + 90;
@@ -157,7 +162,6 @@ void pilotloop() {
 	throttleSignal *= 180;
 
 	//TODO - telemetry
-
 	ailerons.write(aileronSignal);
 	elevator.write(elevatorSignal);
 	throttle.write(throttleSignal);
