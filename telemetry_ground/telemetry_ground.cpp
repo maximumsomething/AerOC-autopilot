@@ -37,11 +37,6 @@ bool readPacket(FILE* serialIn) {
 		std::cerr << "Could not read packet" << std::endl;
 		return false;
 	}
-	if (header.id == telem_id_special_strmessage) {
-		std::string msg(buf, header.packetLength);
-		// todo: escape string
-		std::cout << "strmessage: " << msg << std::endl;
-	}
 
 	// print timestamp
 	/*time_t now = time(nullptr);
@@ -55,8 +50,12 @@ bool readPacket(FILE* serialIn) {
 	std::cout << std::put_time(std::localtime(&time), "%H:%M:%S.");
 	std::cout << ms.count() << " ";
 
-
-	recievePacket(header.id, header.packetLength, buf);
+	if (header.id == telem_id_special_strmessage) {
+		std::string msg(buf, header.packetLength);
+		// todo: escape string
+		std::cout << "strmessage: " << msg << std::endl;
+	}
+	else recievePacket(header.id, header.packetLength, buf);
 
 	// send acknowledgment
 	fwrite(&header.seq, 1, 1, serialIn);

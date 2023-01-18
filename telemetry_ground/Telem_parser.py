@@ -16,6 +16,8 @@ class telemLine:
 		return self.timestamp + " " + str(self.values)
 
 def read_line():
+	global strMessage
+	global strMessageNew
 	line = inFile.readline()
 	if not line:
 		print("Read error")
@@ -32,8 +34,9 @@ def read_line():
 		# remove colon
 		label = label.rstrip(":")
 		# special handling for strmessage
+		# print(label)
 		if label == "strmessage":
-			strMessage = parts[1]
+			strMessage = parts[2]
 			strMessageNew = True
 		else:
 			valuesStrings = parts[2].split(",")
@@ -44,7 +47,7 @@ def read_line():
 				if valueString:
 					keyval = valueString.split("=")
 					if len(keyval) != 2:
-						raise Exception("Invalid telem line: no =")
+						raise Exception('Invalid telem line "' + line + '": no =')
 					parsedLine.values[keyval[0]] = keyval[1]
 			values[label] = parsedLine
 
