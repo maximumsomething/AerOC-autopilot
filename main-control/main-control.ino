@@ -8,6 +8,7 @@
 void setup() {
 	setupAllComms();
 	pilotSetup();
+	telem_strmessage("Initialization complete");
 }
 
 // 200Hz

@@ -79,7 +79,7 @@ def updateVals():
 			playsound(os.path.join(os.path.dirname(os.path.abspath(__file__)), "AlarmSound.wav"), False)
         
 		# for testing
-		time.sleep(0.005)
+		#time.sleep(0.005)
 
 def aknowledgeAlarm():
     global alarm
