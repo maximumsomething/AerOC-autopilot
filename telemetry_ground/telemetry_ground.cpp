@@ -66,7 +66,6 @@ bool readPacket(FILE* serialIn) {
 FILE* openSerial(const char* filename) {
 
 	// todo: this the proper way, with termios and cfmakeraw
-	system(("stty 9600 -F '" + std::string(filename) + "' raw").c_str());
 	FILE* serialIn = fopen(filename, "r+");
 	if (serialIn == nullptr) {
 		perror("Could not open serialIn file");
@@ -83,7 +82,7 @@ int main(int argc, char** argv) {
 	}
 	const char* filename = argv[1];
 
-
+	system(("stty 9600 -F '" + std::string(filename) + "' raw").c_str());
 	FILE* serialIn = openSerial(filename);
 
 	while (true) {
@@ -106,7 +105,7 @@ int main(int argc, char** argv) {
 			// This will cause the other side to wait 100 ms before sending anything else.
 
 
-			usleep(75000);
+			usleep(40000);
 			// close and reopen the file
 			fclose(serialIn);
 			//std::cerr << "file closed" << std::endl;

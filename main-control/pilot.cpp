@@ -131,8 +131,6 @@ kpid elevatorControl(-1, 1, 0, 1.0/30.0, 1.0 / ((30.0 * (1.0/3.0)) * 2.0 * (1.0 
 // just kinda guessing at good constants here
 kpid throttleControl(0, 1, 1 / TOP_SPEED, 0.7 / TOP_SPEED, 0, 0);
 
-unsigned long lastPilotPrintTime = 0;
-
 void pilotLoop() {
 	//const float targetVertSpeed = calcTargetVertSpeed();
 	constexpr float targetVertSpeed = 0;
@@ -159,10 +157,8 @@ void pilotLoop() {
 
 	//TODO - yaw
 
-	if (millis() - lastPilotPrintTime > 200) {
-		telem_controlOut(targetVertSpeed, targetPitch, throttleSignal, elevatorSignal, aileronSignal);
-		lastPilotPrintTime = millis();
-	}
+	telem_controlOut(targetVertSpeed, targetPitch, throttleSignal, elevatorSignal, aileronSignal);
+
 
 	//all control outputs and intermediate crap
 	aileronSignal = (aileronSignal * 90) + 90;
