@@ -3,6 +3,7 @@
 
 from tkinter import *
 from tkinter import ttk
+from playsound import playsound
 import Telem_parser as tp
 from threading import Thread
 import time
@@ -72,16 +73,21 @@ def updateVals():
 			alarm = True
 		if tp.strMessage:
 			status.set(tp.strMessage)
-
+        if alarm:
+            playsound("AlarmSound.mp3", False)
+        
 		# for testing
 		time.sleep(0.005)
+
+def aknowledgeAlarm():
+    alarm = False
 
 #DISPLAY AND FORMATTING STUFF LIVES DOWN HERE
 #status and alarm display
 statusHeader = ttk.Label(mainframe, text="Status: ").grid(column = 0, row = 1, sticky = E)
 statusDisp = ttk.Label(mainframe, textvariable = status).grid(column = 1, row = 1, sticky = W, padx = (0, 10))
 alarmLabel = ttk.Label(mainframe, text="Alarm: ").grid(column = 2, row = 1, sticky = E, padx = (10, 0))
-alarmAk = ttk.Button(mainframe, text = "Aknowledge").grid(column = 3, row = 1, sticky = W, padx = (0, 15))
+alarmAk = ttk.Button(mainframe, text = "Aknowledge", command=aknowledgeAlarm).grid(column = 3, row = 1, sticky = W, padx = (0, 15))
 #pitch information
 pitchHeader = ttk.Label(mainframe, text="PITCH").grid(column = 0, row = 2, columnspan = 2, sticky = N, pady = (10, 0))
 pitchCurLabel = ttk.Label(mainframe, text="Current: ").grid(column = 0, row = 3, sticky = E)
