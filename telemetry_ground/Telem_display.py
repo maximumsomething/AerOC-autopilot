@@ -1,7 +1,11 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 from tkinter import *
 from tkinter import ttk
+import Telem_parser as tp
+from threading import Thread
+import time
   
 #main window setup 
 root = Tk()
@@ -45,6 +49,24 @@ status = StringVar()
 alarm = False
 status.set("Awaiting signals...")
 
+def updateValsForLine(linekey, valkeys, stringvars):
+	for (key, var) in zip(valkeys, stringvars):
+		var.set(tp.get(linekey, key))
+
+
+def updateVals():
+	while tp.read_line():
+		updateValsForLine("pose", ["pitch", "roll", "bearing", "verticalSpeed", "altitude"], [curPitch, curRoll, curBearing, curVertSpeed, curAltitude])
+		updateValsForLine("calInertial", ["ax", "ay", "az", "anorm"], [forAcc, leftAcc, downAcc, totalAcc])
+		updateValsForLine("airspeed", ["speed"], [curAirspeed])
+		updateValsForLine("controlOut", ["targetPitch", "targetVertSpeed", "elevators", "ailerons", "throttle"], [tarPitch, tarVertSpeed, elevatorSignal, aileronSignal, throttleSignal])
+
+		# todo
+
+		# for testing
+		time.sleep(0.005)
+
+
 #status and alarm display
 statusLabel = ttk.Label(mainframe, text="Status: ").grid(column = 0, row = 1, sticky = E)
 statusDisp = ttk.Label(mainframe, textvariable = status).grid(column = 1, row = 1, sticky = W, padx = (0, 10))
@@ -74,5 +96,8 @@ airspeedCurLabel = ttk.Label(mainframe, text="Current: ").grid(column = 2, row =
 airspeedCurDisp = ttk.Label(mainframe, textvariable = curPitch).grid(column = 3, row = 6, sticky = W)
 airspeedTarLabel = ttk.Label(mainframe, text="Target: ").grid(column = 2, row = 7, sticky = E)
 airspeedTarDisp = ttk.Label(mainframe, textvariable = tarPitch).grid(column = 3, row = 7, sticky = W)
+
+
+Thread(None, updateVals, "reading thread").start()
 
 root.mainloop()
