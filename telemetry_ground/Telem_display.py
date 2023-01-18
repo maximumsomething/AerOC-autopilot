@@ -73,7 +73,7 @@ def updateVals():
 statusHeader = ttk.Label(mainframe, text="Status: ").grid(column = 0, row = 1, sticky = E)
 statusDisp = ttk.Label(mainframe, textvariable = status).grid(column = 1, row = 1, sticky = W, padx = (0, 10))
 alarmLabel = ttk.Label(mainframe, text="Alarm: ").grid(column = 2, row = 1, sticky = E, padx = (10, 0))
-alarmAk = ttk.Button(mainframe, text = "Aknowledge").grid(column = 3, row = 1, sticky = W)
+alarmAk = ttk.Button(mainframe, text = "Aknowledge").grid(column = 3, row = 1, sticky = W, padx = (0, 15))
 #pitch information
 pitchHeader = ttk.Label(mainframe, text="PITCH").grid(column = 0, row = 2, columnspan = 2, sticky = N, pady = (10, 0))
 pitchCurLabel = ttk.Label(mainframe, text="Current: ").grid(column = 0, row = 3, sticky = E)
