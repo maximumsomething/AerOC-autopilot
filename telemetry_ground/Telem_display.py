@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
 from tkinter import *
 from tkinter import ttk
 from playsound import playsound
@@ -60,6 +61,7 @@ def updateValsForLine(linekey, valkeys, stringvars):
 
 def updateVals():
 	global gotAnyData
+	global alarm
 	while tp.read_line():
 		if (not gotAnyData):
 			gotAnyData = True
@@ -73,8 +75,8 @@ def updateVals():
 			alarm = True
 		if tp.strMessage:
 			status.set(tp.strMessage)
-        if alarm:
-            playsound("AlarmSound.mp3", False)
+		if alarm:
+			playsound(os.path.join(os.path.dirname(os.path.abspath(__file__)), "AlarmSound.wav"), False)
         
 		# for testing
 		time.sleep(0.005)
