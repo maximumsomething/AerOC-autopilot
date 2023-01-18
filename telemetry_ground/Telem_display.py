@@ -44,6 +44,8 @@ forAcc = StringVar()
 leftAcc = StringVar()
 downAcc = StringVar()
 totalAcc = StringVar()
+GPSLat = StringVar()
+GPSLon = StringVar()
 #ground variables
 status = StringVar()
 alarm = False
@@ -128,8 +130,12 @@ throttleAccLabel = ttk.Label(mainframe, text="downward gs: ").grid(column = 0, r
 throttlesAccDisp = ttk.Label(mainframe, textvariable = downAcc).grid(column = 1, row = 16, sticky = W)
 rudderAccLabel = ttk.Label(mainframe, text="overall gs: ").grid(column = 2, row = 16, sticky = E)
 rudderAccDisp = ttk.Label(mainframe, textvariable = totalAcc).grid(column = 3, row = 16, sticky = W)
-
-
+#GPS data
+GPSDisplayHeader = ttk.Label(mainframe, text="GPS DATA").grid(column = 0, row = 17, columnspan = 4, sticky = N, pady = (10, 0))
+GPSLatLabel = ttk.Label(mainframe, text="Latitude: ").grid(column = 0, row = 18, sticky = E)
+GPSLatDisp = ttk.Label(mainframe, textvariable = GPSLat).grid(column = 1, row = 18, sticky = W)
+GPSLonLabel = ttk.Label(mainframe, text="Longitude: ").grid(column = 2, row = 18, sticky = E)
+GPSLonDisp = ttk.Label(mainframe, textvariable = GPSLon).grid(column = 3, row = 18, sticky = W)
 
 Thread(None, updateVals, "reading thread").start()
 
