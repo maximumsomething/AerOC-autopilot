@@ -5,7 +5,8 @@ import sys
 inFile = sys.stdin
 
 values = {}
-strmessages = []
+strMessage = ""
+strMessageNew = False
 
 class telemLine:
 	values = {}
@@ -32,8 +33,8 @@ def read_line():
 		label = label.rstrip(":")
 		# special handling for strmessage
 		if label == "strmessage":
-			# todo
-			pass
+			strMessage = parts[1]
+			strMessageNew = True
 		else:
 			valuesStrings = parts[2].split(",")
 			#valuesStrings = list(map(lambda x : x.strip(), valuesStrings))
@@ -50,7 +51,11 @@ def read_line():
 	return True
 
 
-
+def newWarning():
+	if strMessageNew:
+		return "ERROR" in strMessage
+	else:
+		return False
 
 def get(category, key):
 	try:
