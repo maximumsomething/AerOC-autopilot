@@ -46,6 +46,7 @@ struct PriorityMessage {
 	uint8_t id;
 	uint8_t seq; //
 	uint16_t length;
+	int transmitTime;
 	char contents[];
 };
 std::vector<PriorityMessage *> priorityMessages;
@@ -104,8 +105,20 @@ void checkAcks() {
 			}
 		}
 	}
-	if (lastAckMillis < lastMsgMillis && millis() - lastAckMillis > ACK_TIMEOUT) {
-		Serial.printf("No acks for %d millis, resetting telemetry\n", millis() - lastAckMillis);
+	int curTime = millis();
+
+	// check for any priority messages that have timed out
+	for (int i = sentPriorityMessages.size() - 1; i >= 0; --i) {
+		PriorityMessage* msg = sentPriorityMessages[i];
+		if (msg->transmitTime + ACK_TIMEOUT < curTime) {
+			// queue the message for resending.
+			sentPriorityMessages.erase(sentPriorityMessages.begin() + i);
+			priorityMessages.push_back(msg);
+			Serial.println("retransmitting unacknowledged priority message");
+		}
+	}
+	if (lastAckMillis < lastMsgMillis && curTime - lastAckMillis > ACK_TIMEOUT) {
+		Serial.printf("No acks for %d millis, resetting telemetry\n", curTime - lastAckMillis);
 		reset_telem();
 	}
 }
@@ -130,9 +143,9 @@ bool canSendMessage(int length) {
 	if ((int32_t) curTime < pauseEndMillis) return false;
 	if (length > telem_serial->availableForWrite()) return false;
 
-	// Pause for 100 ms every 50 ms to allow acks to get through the half-duplex link
+	// Pause for 50 ms every 50 ms to allow acks to get through the half-duplex link
 	if (curTime - pauseEndMillis > 50) {
-		pauseEndMillis = curTime + 100;
+		pauseEndMillis = curTime + 50;
 		return false;
 	}
 
@@ -146,6 +159,7 @@ void sendQueuedMessages() {
 		PriorityMessage* msg = priorityMessages.back();
 		priorityMessages.pop_back();
 		msg->seq = send_telem_packet(msg->id, msg->length, &msg->contents);
+		msg->transmitTime = millis();
 		Serial.printf("sent prio msg of seq=%d\n", msg->seq);
 
 		sentPriorityMessages.push_back(msg);

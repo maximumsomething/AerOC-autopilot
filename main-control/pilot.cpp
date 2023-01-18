@@ -123,7 +123,7 @@ float calcTargetVertSpeed() {
 
 // PID classes
 kpid aileronControl(-1, 1, 0, 1.0/30.0, .25 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0, 0.1);
-kpid pitchControl(MIN_PITCH, MAX_PITCH, 0, MAX_PITCH / MAX_CLIMB_RATE, 0, 0, 30); // todo: figure out constants better
+kpid pitchControl(MIN_PITCH, MAX_PITCH, 0, MAX_PITCH / MAX_CLIMB_RATE, 0, 0, 10); // todo: figure out constants better
 // kp: estimated by manual pilot
 // ki: We want to reach an integral term of 1/3 within 2 seconds
 // ends up being: 1 / ((1/2) * seconds * desiredTerm * (1/kp))
