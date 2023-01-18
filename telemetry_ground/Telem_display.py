@@ -49,6 +49,7 @@ GPSLon = StringVar()
 #ground variables
 status = StringVar()
 alarm = False
+gotAnyData = False
 status.set("Awaiting signals...")
 
 def updateValsForLine(linekey, valkeys, stringvars):
@@ -57,13 +58,20 @@ def updateValsForLine(linekey, valkeys, stringvars):
 
 
 def updateVals():
+	global gotAnyData
 	while tp.read_line():
+		if (not gotAnyData):
+			gotAnyData = True
+			status.set("Good")
 		updateValsForLine("pose", ["pitch", "roll", "bearing", "verticalSpeed", "altitude"], [curPitch, curRoll, curBearing, curVertSpeed, curAltitude])
 		updateValsForLine("calInertial", ["ax", "ay", "az", "anorm"], [forAcc, leftAcc, downAcc, totalAcc])
 		updateValsForLine("airspeed", ["speed"], [curAirspeed])
 		updateValsForLine("controlOut", ["targetPitch", "targetVertSpeed", "elevators", "ailerons", "throttle"], [tarPitch, tarVertSpeed, elevatorSignal, aileronSignal, throttleSignal])
 
-		# todo
+		if tp.newWarning():
+			alarm = True
+		if tp.strMessage:
+			status.set(tp.strMessage)
 
 		# for testing
 		time.sleep(0.005)
