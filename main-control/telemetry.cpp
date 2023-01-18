@@ -19,7 +19,7 @@ void print_telem_timestamp() {
 
 int32_t pauseEndMillis = -10000;
 constexpr int NACK_PAUSE_TIME = 100; // milliseconds to pause for resynchronization
-constexpr int ACK_TIMEOUT = 100;
+constexpr int ACK_TIMEOUT = 200;
 uint8_t telem_seq = 0; // overflows from 255 to 1 (zero is error)
 int32_t lastMsgMillis = 0;
 int32_t lastAckMillis = 0;
@@ -46,6 +46,7 @@ struct PriorityMessage {
 	uint8_t id;
 	uint8_t seq; //
 	uint16_t length;
+	int transmitTime;
 	char contents[];
 };
 std::vector<PriorityMessage *> priorityMessages;
@@ -104,8 +105,20 @@ void checkAcks() {
 			}
 		}
 	}
-	if (lastAckMillis < lastMsgMillis && millis() - lastAckMillis > ACK_TIMEOUT) {
-		Serial.printf("No acks for %d millis, resetting telemetry\n", millis() - lastAckMillis);
+	int curTime = millis();
+
+	// check for any priority messages that have timed out
+	for (int i = sentPriorityMessages.size() - 1; i >= 0; --i) {
+		PriorityMessage* msg = sentPriorityMessages[i];
+		if (msg->transmitTime + ACK_TIMEOUT < curTime) {
+			// queue the message for resending.
+			sentPriorityMessages.erase(sentPriorityMessages.begin() + i);
+			priorityMessages.push_back(msg);
+			Serial.println("retransmitting unacknowledged priority message");
+		}
+	}
+	if (lastAckMillis < lastMsgMillis && curTime - lastAckMillis > ACK_TIMEOUT) {
+		Serial.printf("No acks for %d millis, resetting telemetry\n", curTime - lastAckMillis);
 		reset_telem();
 	}
 }
@@ -126,8 +139,16 @@ uint8_t send_telem_packet(uint8_t id, uint16_t length, const void* data) {
 }
 
 bool canSendMessage(int length) {
-	if ((int32_t) millis() < pauseEndMillis) return false;
+	int curTime = millis();
+	if ((int32_t) curTime < pauseEndMillis) return false;
 	if (length > telem_serial->availableForWrite()) return false;
+
+	// Pause for 50 ms every 50 ms to allow acks to get through the half-duplex link
+	if (curTime - pauseEndMillis > 50) {
+		pauseEndMillis = curTime + 50;
+		return false;
+	}
+
 	return true;
 }
 
@@ -138,6 +159,7 @@ void sendQueuedMessages() {
 		PriorityMessage* msg = priorityMessages.back();
 		priorityMessages.pop_back();
 		msg->seq = send_telem_packet(msg->id, msg->length, &msg->contents);
+		msg->transmitTime = millis();
 		Serial.printf("sent prio msg of seq=%d\n", msg->seq);
 
 		sentPriorityMessages.push_back(msg);
@@ -156,7 +178,7 @@ void sendQueuedMessages() {
 
 		send_telem_packet(msg->id, msg->length, msg->contents);
 		// Remove the node from the list
-		Serial.printf("sent %d\n", msg->id);
+		//Serial.printf("sent %d\n", msg->id);
 		if (msg == queueTail) {
 			//Serial.println("empty queue");
 			queueTail = nullptr;
@@ -184,42 +206,18 @@ void dispatch_telem_packet(uint8_t id, uint16_t length, const void* data) {
 	}
 	else {
 
-		/*if (queueHead == nullptr && canSendMessage(length)) {
-			send_telem_packet(id, length, data);
-		}*/
-
 		// enqueue packet, replacing any previously queued packet of this message type
 		MessageNode* node = getQueuedMessage(id);
-		// remove the node from the list
-		if (node->newer && node->older) {
-			//Serial.printf("stitching %d (%x) to %d (%x) around %d\n", node->older->id, node->older, node->newer->id, node->newer, id);
-			/*if (node->newer == node->older) {
-				Serial.println("lul what?");
-				return;
-			}*/
-			node->older->newer = node->newer;
-			node->newer->older = node->older;
-		}
-		else if (queueHead == node) { // node is at the head
-			queueHead = node->newer;
-			if (queueHead) queueHead->older = nullptr;
-		}
-		else if (queueTail == node) { // node is at the tail
-			queueTail = node->older;
-			if (queueTail) queueTail->newer = nullptr;
-		}
-		else if (queueHead == node && queueTail == node) { // node is the only node
-			//Serial.println("only node");
-			queueTail = nullptr;
-			queueHead = nullptr;
-		}
 
-		// add at the tail
-		node->older = queueTail;
-		node->newer = nullptr;
-		if (queueTail) queueTail->newer = node;
-		if (queueHead == nullptr) queueHead = node;
-		queueTail = node;
+		// if the node is not already in the queue
+		if (node->newer == nullptr && node->older == nullptr) {
+			// add at the tail
+			node->older = queueTail;
+			node->newer = nullptr;
+			if (queueTail) queueTail->newer = node;
+			if (queueHead == nullptr) queueHead = node;
+			queueTail = node;
+		}
 
 		// Since messages are always the same length, allocate the contents only once
 		if (node->contents == nullptr) node->contents = malloc(length);

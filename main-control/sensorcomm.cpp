@@ -39,14 +39,15 @@ void telemSerialSetup() {
 	}
 }
 
+// 1MHz data rate
+constexpr int IMU_I2C_CLOCK = 1000000;
 void i2cSetup() {
 	// Start the first I2C bus (MPU9250)
 	//pinMode(18, INPUT_PULLUP);
 	//pinMode(19, INPUT_PULLUP);
 
 	Wire.begin();
-	// 1MHz data rate
-	Wire.setClock(1000000);
+	Wire.setClock(IMU_I2C_CLOCK);
 
 	// start the second I2C bus (BMP390), Wire1, on pins 16 and 17
 	//pinMode(16, INPUT_PULLUP);
@@ -157,6 +158,9 @@ void imuSetup() {
 }
 
 bool readImu() {
+	// this gets reset to 100kHz somewhere, don't know where, so we have to set it here
+	Wire.setClock(IMU_I2C_CLOCK);
+
 	// Check for new data in the FIFO
 	if (imu.fifoAvailable()) {
 		// Use dmpUpdateFifo to update the ax, gx, mx, etc. values
@@ -363,7 +367,14 @@ void altimeterSetup() {
 	Serial.println("Barometer set up");
 }
 
+int altimeterResets = 0;
+int altimeterBadTicks = 0;
+
 void readAltimeter() {
+	if (altimeterResets == 2) {
+		telem_strmessage("ERROR: bad altimeter\n\n\n");
+	}
+
     struct bmp3_status status = { { 0 } };
 	struct bmp3_data data = { 0 };
 	int8_t rslt = bmp3_get_status(&status, &bmpdev);
@@ -372,9 +383,10 @@ void readAltimeter() {
 	if (rslt != BMP3_OK) {
 		// reset barometer (it sometimes dies for some reason???)
 		altimeterSetup();
+		++altimeterResets;
 	}
 	/* Read temperature and pressure data iteratively based on data ready interrupt */
-	else if ((rslt == BMP3_OK) && (status.intr.drdy == BMP3_ENABLE)) {
+	else if (status.intr.drdy == BMP3_ENABLE) {
 		/*
 			* First parameter indicates the type of data to be read
 			* BMP3_PRESS_TEMP : To read pressure and temperature data
@@ -384,12 +396,24 @@ void readAltimeter() {
 		rslt = bmp3_get_sensor_data(BMP3_PRESS_TEMP, &data, &bmpdev);
 		bmp3_check_rslt("bmp3_get_sensor_data", rslt);
 
+		if (rslt != BMP3_OK) {
+			++altimeterBadTicks;
+			if (altimeterBadTicks > 10) {
+				altimeterSetup();
+				++altimeterResets;
+				altimeterBadTicks = 0;
+			}
+		}
+		else {
+			float atmospheric = data.pressure / 100.0F;
+			baromAltitude = 44330.0 * (1.0 - pow(atmospheric / 1013.25, 0.1903));
+			altimeterResets = 0;
+			altimeterBadTicks = 0;
+		}
+
 		/* NOTE : Read status register again to clear data ready interrupt status */
 		rslt = bmp3_get_status(&status, &bmpdev);
 		bmp3_check_rslt("bmp3_get_status", rslt);
-
-		float atmospheric = data.pressure / 100.0F;
-		baromAltitude = 44330.0 * (1.0 - pow(atmospheric / 1013.25, 0.1903));
 
 		//telem_pressureTemp390(data.pressure / 100.0, data.temperature, baromAltitude);
 
@@ -405,6 +429,13 @@ void readAltimeter() {
 	}
 	else {
 		Serial.print("Barometer not ready\n");
+		++altimeterBadTicks;
+		if (altimeterBadTicks > 10) {
+			altimeterSetup();
+			++altimeterResets;
+			altimeterBadTicks = 0;
+		}
+
 	}
 }
 
@@ -434,7 +465,7 @@ namespace airspeedCalc {
 	constexpr float PRESSURE_DIFF_CORRECTION = 101; // to correct for the apparent 101Pa pressure
 
 
-	constexpr int PRES_BUF_SIZE = 10;
+	constexpr int PRES_BUF_SIZE = 25;
 	ring_buffer<float> pressureBuffer(PRES_BUF_SIZE);
 	float avgPressureDiff = 0;
 
@@ -458,6 +489,8 @@ namespace airspeedCalc {
 		pollingTimer.begin(&pollAirspeed, 500);
 	}
 
+	int airspeedMisreadTicks = 0;
+
 	void readAirspeed() {
 		// Average all the reads since readAirspeed() was last called
 		int actualSamples = 0;
@@ -472,6 +505,17 @@ namespace airspeedCalc {
 			}
 		}
 		sampleIdx = 0;
+
+		if (actualSamples == 0) {
+			Serial.println("airspeed sensor not responding");
+			++airspeedMisreadTicks;
+			if (airspeedMisreadTicks == 25) {
+				// error message, once
+				telem_strmessage("ERROR: airspeed out\n\n");
+			}
+			return;
+		}
+		airspeedMisreadTicks = 0;
 
 		float avgCnts = totalPresCounts / actualSamples;
 		float pres_psi = (avgCnts - kc * P_CNT_) *
