@@ -68,7 +68,7 @@ def updateVals():
 		# for testing
 		time.sleep(0.005)
 
-
+#DISPLAY AND FORMATTING STUFF LIVES DOWN HERE
 #status and alarm display
 statusHeader = ttk.Label(mainframe, text="Status: ").grid(column = 0, row = 1, sticky = E)
 statusDisp = ttk.Label(mainframe, textvariable = status).grid(column = 1, row = 1, sticky = W, padx = (0, 10))
@@ -137,6 +137,8 @@ GPSLatDisp = ttk.Label(mainframe, textvariable = GPSLat).grid(column = 1, row = 
 GPSLonLabel = ttk.Label(mainframe, text="Longitude: ").grid(column = 2, row = 18, sticky = E)
 GPSLonDisp = ttk.Label(mainframe, textvariable = GPSLon).grid(column = 3, row = 18, sticky = W)
 
+
+#UPDATE LOOPS AND STUFF START HERE
 Thread(None, updateVals, "reading thread").start()
 
 root.mainloop()
