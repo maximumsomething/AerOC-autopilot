@@ -93,15 +93,6 @@ void checkAcks() {
 					free(msg);
 					continue;
 				}
-				// check if we received an ack ahead of the message's sequence number
-				// (actually checks for if it's up to 50 ahead because seq numbers wrap around)
-				int16_t diff = (int16_t) ack - (int16_t) msg->seq;
-				if ((diff > 0 && diff < 50) || diff < (50 - 255)) {
-					// queue the message for resending.
-					sentPriorityMessages.erase(sentPriorityMessages.begin() + i);
-					priorityMessages.push_back(msg);
-					Serial.println("retransmitting unacknowledged priority message");
-				}
 			}
 		}
 	}
@@ -135,6 +126,7 @@ uint8_t send_telem_packet(uint8_t id, uint16_t length, const void* data) {
 	telem_serial->write((uint8_t *)data, length);
 
 	lastMsgMillis = millis();
+	//Serial.printf("sent seq=%d\n", telem_seq);
 	return telem_seq;
 }
 
