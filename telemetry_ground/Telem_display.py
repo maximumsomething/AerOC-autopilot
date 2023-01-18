@@ -62,7 +62,15 @@ def updateValsForLine(linekey, valkeys, stringvars):
 def updateVals():
 	global gotAnyData
 	global alarm
-	while tp.read_line():
+	while True:
+		try:
+			resultcode = tp.read_line()
+		except Exception as e:
+			print("Parser error", e)
+		if not resultcode:
+			# EOF or I/O error
+			return
+
 		if (not gotAnyData):
 			gotAnyData = True
 			status.set("Good")
