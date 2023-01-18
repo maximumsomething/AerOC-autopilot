@@ -82,8 +82,12 @@ def updateVals():
 		time.sleep(0.005)
 
 def aknowledgeAlarm():
+    global alarm
+    akMessage = status.get()
+    if alarm and status.get().startswith("ERROR") :
+        akMessage += ", Aknowledged"
     alarm = False
-    status.set(status.get() + " aknowledged.")
+    status.set(akMessage)
 
 #DISPLAY AND FORMATTING STUFF LIVES DOWN HERE
 #status and alarm display
