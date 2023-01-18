@@ -83,6 +83,7 @@ def updateVals():
 
 def aknowledgeAlarm():
     alarm = False
+    status.set(status.get() + " aknowledged.")
 
 #DISPLAY AND FORMATTING STUFF LIVES DOWN HERE
 #status and alarm display
