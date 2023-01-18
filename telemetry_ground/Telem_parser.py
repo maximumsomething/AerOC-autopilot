@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import sys
 
 
@@ -17,7 +15,11 @@ class telemLine:
 		return self.timestamp + " " + str(self.values)
 
 def read_line():
-	line = inFile.readline().strip()
+	line = inFile.readline()
+	if not line:
+		print("Read error")
+		return False
+	line = line.strip()
 	if (line):
 		parsedLine = telemLine()
 		parts = line.split(" ", 2)
@@ -44,6 +46,8 @@ def read_line():
 						raise Exception("Invalid telem line: no =")
 					parsedLine.values[keyval[0]] = keyval[1]
 			values[label] = parsedLine
+
+	return True
 
 
 

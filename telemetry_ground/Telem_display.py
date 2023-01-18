@@ -1,7 +1,11 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 from tkinter import *
 from tkinter import ttk
+import Telem_parser as tp
+from threading import Thread
+import time
   
 #main window setup 
 root = Tk()
@@ -44,6 +48,24 @@ totalAcc = StringVar()
 status = StringVar()
 alarm = False
 status.set("Awaiting signals...")
+
+def updateValsForLine(linekey, valkeys, stringvars):
+	for (key, var) in zip(valkeys, stringvars):
+		var.set(tp.get(linekey, key))
+
+
+def updateVals():
+	while tp.read_line():
+		updateValsForLine("pose", ["pitch", "roll", "bearing", "verticalSpeed", "altitude"], [curPitch, curRoll, curBearing, curVertSpeed, curAltitude])
+		updateValsForLine("calInertial", ["ax", "ay", "az", "anorm"], [forAcc, leftAcc, downAcc, totalAcc])
+		updateValsForLine("airspeed", ["speed"], [curAirspeed])
+		updateValsForLine("controlOut", ["targetPitch", "targetVertSpeed", "elevators", "ailerons", "throttle"], [tarPitch, tarVertSpeed, elevatorSignal, aileronSignal, throttleSignal])
+
+		# todo
+
+		# for testing
+		time.sleep(0.005)
+
 
 #status and alarm display
 statusHeader = ttk.Label(mainframe, text="Status: ").grid(column = 0, row = 1, sticky = E)
@@ -107,5 +129,8 @@ throttlesAccDisp = ttk.Label(mainframe, textvariable = downAcc).grid(column = 1,
 rudderAccLabel = ttk.Label(mainframe, text="overall gs: ").grid(column = 2, row = 16, sticky = E)
 rudderAccDisp = ttk.Label(mainframe, textvariable = totalAcc).grid(column = 3, row = 16, sticky = W)
 
+
+
+Thread(None, updateVals, "reading thread").start()
 
 root.mainloop()
