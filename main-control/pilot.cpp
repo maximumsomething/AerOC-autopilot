@@ -22,13 +22,14 @@ constexpr float MAX_ROLL = 30;
 constexpr float TOP_SPEED = 12; // Theoretical top airspeed used for calculating throttle
 
 constexpr bool TEST_MODE = false; //Test mode, disables throttle if true
+#define NO_PILOT_START // Defined when there is no way of knowing when the autopilot starts
 
 // in theory could be set dynamically, but are constants right now
 float targetSpeed = 8;
-// set when autopilot is enabled
+// set when autopilot is enabled. Unused if NO_PILOT_START.
 float targetAltitude;
-// set when the autopilot is enabled
-float targetBearing;
+// set when the autopilot is enabled.
+float targetBearing = 180;
 
 // utility functions
 
@@ -128,6 +129,7 @@ float calcTargetVertSpeed() {
 unsigned long pilotLastPrintTime = 0;
 
 // PID classes
+// the correct constant is on the order of magnitude of 1, so why not just have it be 1?
 kpid rollControl(MAX_ROLL * -1, MAX_ROLL, 0, 1, 0, 0);
 kpid aileronControl(-1, 1, 0, 1.0/30.0, .25 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0, 0.1);
 
@@ -142,8 +144,11 @@ kpid throttleControl(0, 1, 1 / TOP_SPEED, 0.7 / TOP_SPEED, 0, 0);
 kpid rudderControl(-1, 1, 0, 1.0/30.0, 0, 0);
 
 void pilotLoop() {
-	//const float targetVertSpeed = calcTargetVertSpeed();
+#ifdef NO_PILOT_START
 	constexpr float targetVertSpeed = 0;
+#else
+	const float targetVertSpeed = calcTargetVertSpeed();
+#endif
 
 	// calculate desired pitch from target vertical speed and current airspeed
 	// if (current airspeed - safe airspeed) < val then calculate something from (current airspeed - safe airspeed)
@@ -164,10 +169,12 @@ void pilotLoop() {
 	
 	// control aileron to set roll
 	float targetRoll = rollControl.update(targetBearing, DeadReckoner::getBearing());
+	// above commented out to test flying straight
+	//float targetRoll = 0;
 	float aileronSignal = aileronControl.update(targetRoll, DeadReckoner::getRoll());
 
-	//TODO - yaw
 	float rudderSignal = rudderControl.update(targetBearing, DeadReckoner::getBearing());
+	//float rudderSignal = 0;
 
 	if (millis() - pilotLastPrintTime >= 200) {
 		telem_controlOut(targetVertSpeed, targetPitch, throttleSignal, elevatorSignal, aileronSignal);
@@ -185,5 +192,5 @@ void pilotLoop() {
 	elevatorServo.write(elevatorSignal);
 	if(!TEST_MODE) throttleServo.write(throttleSignal);
 	else throttleServo.write(0);
-	rudderServo.write(90);
+	rudderServo.write((rudderSignal * 90) + 90);
 }
