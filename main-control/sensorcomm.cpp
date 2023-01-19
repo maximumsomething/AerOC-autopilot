@@ -170,7 +170,7 @@ bool readImu() {
 		}
 		else {
 			Serial.printf("Error reading imu fifo: %d\n", result);
-			imu.resetFifo();
+			//bumpImu();
 		}
 	}
 	return false;
@@ -533,5 +533,26 @@ namespace airspeedCalc {
 
 		airspeed = sqrt(2*fabs(avgPressureDiff)/AIR_DENSITY);
 		//telem_airspeed(airspeed, avgPressureDiff);
+	}
+}
+
+
+// Prevent GPSport.h from being included
+#define GPSport_h
+// Configure our own serial port for the parser
+#define gpsPort Serial5
+#define GPS_PORT_NAME "Serial5"
+#define DEBUG_PORT Serial
+// Include the header after the above are configured
+#include <NMEAGPS.h>
+
+
+NMEAGPS gps;
+gps_fix fix;
+
+void readGps() {
+	while (gps.available( gps_port )) {
+		fix = gps.read();
+		doSomeWork( fix );
 	}
 }

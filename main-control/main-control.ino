@@ -43,12 +43,12 @@ void loop() {
 	//Serial.printf("We read %d imu values on this loop\n", tickImuReads);
 	if (tickImuReads == 0) {
 		ticksSinceLastImuRead++;
-		if (ticksSinceLastImuRead >= 20) {
+		if (ticksSinceLastImuRead >= 50) {
 			telem_strmessage("ERROR: reset IMU\n\n\n");
 			DeadReckoner::resetCalibration();
 			imuSetup();
 		}
-		else if (ticksSinceLastImuRead >= 3) {
+		else if (ticksSinceLastImuRead >= 6) {
 			bumpImu();
 			Serial.printf("IMU bus & fifo reset after %d successful reads\n", totalImuReads);
 			totalImuReads = 0;
