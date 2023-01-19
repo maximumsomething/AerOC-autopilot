@@ -64,7 +64,7 @@ void loop() {
 	// do at 50 Hz
 	airspeedCalc::readAirspeed();
 	//Serial.println(micros() - startTime);
-	//if (startTime > lastPrintTime + 200000) {
+	if (startTime > lastPrintTime + 200000) {
 		if (tickImuReads > 0) {
 			DeadReckoner::printData();
 			lastPrintTime = startTime;
@@ -72,7 +72,7 @@ void loop() {
 			//Serial.printf("gx=%f, gy=%f, gz=%f\n", imuData.gyrox, imuData.gyroy, imuData.gyroz);
 			telem_airspeed(airspeedCalc::airspeed, airspeedCalc::avgPressureDiff);
 		}
-	//}
+	}
 	int endTime = micros();
 	//Serial.printf("loop took %d us\n", endTime - startTime);
 	// make loop

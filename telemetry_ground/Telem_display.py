@@ -76,15 +76,19 @@ def updateVals():
 			status.set("Good")
 		updateValsForLine("pose", ["pitch", "roll", "bearing", "verticalSpeed", "altitude"], [curPitch, curRoll, curBearing, curVertSpeed, curAltitude])
 		updateValsForLine("calInertial", ["ax", "ay", "az", "anorm"], [forAcc, leftAcc, downAcc, totalAcc])
-		updateValsForLine("airspeed", ["speed"], [curAirspeed])
+		updateValsForLine("airspeed", ["speed", "pressurediff"], [curAirspeed, pressureDiff])
 		updateValsForLine("controlOut", ["targetPitch", "targetVertSpeed", "elevators", "ailerons", "throttle"], [tarPitch, tarVertSpeed, elevatorSignal, aileronSignal, throttleSignal])
 
 		if tp.newWarning():
 			alarm = True
+			try:
+				playsound(os.path.join(os.path.dirname(os.path.abspath(__file__)), "AlarmSound.wav"), False)
+			except Exception as e:
+				print(e)
+				# ignore otherwise
+
 		if tp.strMessage:
 			status.set(tp.strMessage)
-		if alarm:
-			playsound(os.path.join(os.path.dirname(os.path.abspath(__file__)), "AlarmSound.wav"), False)
         
 		# for testing
 		#time.sleep(0.005)

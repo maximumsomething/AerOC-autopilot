@@ -2,7 +2,7 @@
 #include <Arduino.h>
 #include "telemetry_autogen.h"
 
-//#define TELEM_SAVE
+#define TELEM_SAVE
 
 void telem_strmessage(const char* string);
 

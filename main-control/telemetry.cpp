@@ -18,7 +18,7 @@ void print_telem_timestamp() {
 }
 
 int32_t pauseEndMillis = -10000;
-constexpr int NACK_PAUSE_TIME = 100; // milliseconds to pause for resynchronization
+constexpr int NACK_PAUSE_TIME = 200; // milliseconds to pause for resynchronization
 constexpr int ACK_TIMEOUT = 200;
 uint8_t telem_seq = 0; // overflows from 255 to 1 (zero is error)
 int32_t lastMsgMillis = 0;
@@ -135,11 +135,11 @@ bool canSendMessage(int length) {
 	if ((int32_t) curTime < pauseEndMillis) return false;
 	if (length > telem_serial->availableForWrite()) return false;
 
-	// Pause for 50 ms every 50 ms to allow acks to get through the half-duplex link
-	if (curTime - pauseEndMillis > 50) {
-		pauseEndMillis = curTime + 50;
+	// Pause for 100 ms every 50 ms to allow acks to get through the half-duplex link
+	/*if (curTime - pauseEndMillis > 50) {
+		pauseEndMillis = curTime + 100;
 		return false;
-	}
+	}*/
 
 	return true;
 }
