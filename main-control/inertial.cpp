@@ -257,6 +257,11 @@ namespace DeadReckoner {
 		downCalibrated = true;
 	}
 
+	void resetCalibration() {
+		referenceRotation = Quaternionf::Identity();
+		digitalWrite(13, LOW);
+	}
+
 	float getRoll() {return roll;}
 	float getPitch() {return pitch;}
 	float getVerticalSpeed() { return verticalSpeedCalculator.lastVal; }

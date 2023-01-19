@@ -45,6 +45,7 @@ void loop() {
 		ticksSinceLastImuRead++;
 		if (ticksSinceLastImuRead >= 20) {
 			telem_strmessage("ERROR: reset IMU\n\n\n");
+			DeadReckoner::resetCalibration();
 			imuSetup();
 		}
 		else if (ticksSinceLastImuRead >= 3) {

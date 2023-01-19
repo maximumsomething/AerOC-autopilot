@@ -13,6 +13,8 @@
 namespace DeadReckoner {
 	void newData(RawImuData data);
 	void printData();
+	void resetCalibration(); // Call when there's an IMU reset
+
 	float getRoll();
 	float getPitch();
 	float getBearing();
