@@ -17,6 +17,8 @@ constexpr float MAX_CLIMB_RATE = 1; // conservative
 constexpr float MIN_PITCH = -30; // degrees
 constexpr float MAX_PITCH = 30; // degrees
 
+constexpr float MAX_ROLL = 30;
+
 constexpr float TOP_SPEED = 12; // Theoretical top airspeed used for calculating throttle
 
 constexpr bool TEST_MODE = false; //Test mode, disables throttle if true
@@ -25,7 +27,8 @@ constexpr bool TEST_MODE = false; //Test mode, disables throttle if true
 float targetSpeed = 8;
 // set when autopilot is enabled
 float targetAltitude;
-
+// set when the autopilot is enabled
+float targetBearing;
 
 // utility functions
 
@@ -102,6 +105,7 @@ void pilotSetup() {
 
 void pilotStart() {
 	targetAltitude = DeadReckoner::getAltitude();
+	targetBearing = DeadReckoner::getBearing();
 }
 
 // calculate target vertical speed from target elevation
@@ -121,10 +125,12 @@ float calcTargetVertSpeed() {
 	}
 }
 
-int pilotLastPrintTime = 0;
+unsigned long pilotLastPrintTime = 0;
 
 // PID classes
+kpid rollControl(MAX_ROLL * -1, MAX_ROLL, 0, 1, 0, 0);
 kpid aileronControl(-1, 1, 0, 1.0/30.0, .25 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0, 0.1);
+
 kpid pitchControl(MIN_PITCH, MAX_PITCH, 0, MAX_PITCH / MAX_CLIMB_RATE * 0.5, 0, 0, 10); // todo: figure out constants better
 // kp: estimated by manual pilot
 // ki: We want to reach an integral term of 1/3 within 2 seconds
@@ -132,6 +138,8 @@ kpid pitchControl(MIN_PITCH, MAX_PITCH, 0, MAX_PITCH / MAX_CLIMB_RATE * 0.5, 0, 
 kpid elevatorControl(-1, 1, 0, 1.0/30.0, 1.0 / ((30.0 * (1.0/3.0)) * 2.0 * (1.0 / 2.0)), 0, 0.3);
 // just kinda guessing at good constants here
 kpid throttleControl(0, 1, 1 / TOP_SPEED, 0.7 / TOP_SPEED, 0, 0);
+//Constants determined by vibes
+kpid rudderControl(-1, 1, 0, 1.0/30.0, 0, 0);
 
 void pilotLoop() {
 	//const float targetVertSpeed = calcTargetVertSpeed();
@@ -154,10 +162,12 @@ void pilotLoop() {
 	// control throttle to set airspeed
 	float throttleSignal = throttleControl.update(targetSpeed, airspeed);
 	
-	// control aileron to set roll (always 0 for now)
-	float aileronSignal = aileronControl.update(0, DeadReckoner::getRoll());
+	// control aileron to set roll
+	float targetRoll = rollControl.update(targetBearing, DeadReckoner::getBearing());
+	float aileronSignal = aileronControl.update(targetRoll, DeadReckoner::getRoll());
 
 	//TODO - yaw
+	float rudderSignal = rudderControl.update(targetBearing, DeadReckoner::getBearing());
 
 	if (millis() - pilotLastPrintTime >= 200) {
 		telem_controlOut(targetVertSpeed, targetPitch, throttleSignal, elevatorSignal, aileronSignal);

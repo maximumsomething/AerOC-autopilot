@@ -264,6 +264,7 @@ namespace DeadReckoner {
 
 	float getRoll() {return roll;}
 	float getPitch() {return pitch;}
+	float getBearing() {return bearing;}
 	float getVerticalSpeed() { return verticalSpeedCalculator.lastVal; }
 	float getAltitude() { return altitudeCalculator.lastVal; }
 }
