@@ -171,7 +171,7 @@ namespace DeadReckoner {
 		}
 	};
 
-	DriftCorrInt verticalSpeedCalculator(SAMPLE_DELTA, 5);
+	DriftCorrInt verticalSpeedCalculator(SAMPLE_DELTA, 20);
 	DriftCorrInt altitudeCalculator(SAMPLE_DELTA, 5);
 
 	void calibrateDown();
@@ -233,7 +233,7 @@ namespace DeadReckoner {
 	}
 
 	void printData() {
-		telem_calInertial(calibratedAccel.x(), calibratedAccel.y(), calibratedAccel.z(), calibratedAccel.norm());
+		telem_calInertial(calibratedAccel.x(), calibratedAccel.y(), calibratedAccel.z() - calibratedG, calibratedAccel.norm());
 		telem_pose(pitch, roll, bearing, getVerticalSpeed(), getAltitude());
 	}
 
@@ -243,6 +243,10 @@ namespace DeadReckoner {
 			calibratedG = averageAccel.norm();
 			Quaternionf angleFromDown = Quaternionf::FromTwoVectors(Vector3f::UnitZ(), averageAccel);
 			referenceRotation = rawAttitude*angleFromDown;
+
+			// reset vertical drift
+			verticalSpeedCalculator.lastVal = 0;
+			altitudeCalculator.lastVal = getBaromAltitude();
 
 			// light up onboard LED when calibrated
 			digitalWrite(13, HIGH);
