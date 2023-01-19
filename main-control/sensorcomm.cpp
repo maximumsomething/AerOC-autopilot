@@ -19,8 +19,10 @@ void setupAllComms() {
 	imuSetup();
 	altimeterSetup();
 	airspeedCalc::airspeedSetup();
+	gpsSetup();
 	// status LED
 	pinMode(13, OUTPUT);
+
 	// so there isn't a big queue of imu values
 	bumpImu();
 }
@@ -546,13 +548,20 @@ namespace airspeedCalc {
 // Include the header after the above are configured
 #include <NMEAGPS.h>
 
+// For printing GPS output
+#include <Streamers.h>
+
 
 NMEAGPS gps;
 gps_fix fix;
 
+void gpsSetup() {
+	gpsPort.begin(9600);
+}
+
 void readGps() {
-	while (gps.available( gps_port )) {
+	while (gps.available( gpsPort )) {
 		fix = gps.read();
-		doSomeWork( fix );
+		trace_all( DEBUG_PORT, gps, fix );
 	}
 }

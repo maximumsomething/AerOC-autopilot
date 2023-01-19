@@ -65,6 +65,9 @@ void loop() {
 	// do at 50 Hz
 	airspeedCalc::readAirspeed();
 	//Serial.println(micros() - startTime);
+
+	readGps();
+
 	if (startTime > lastPrintTime + 200000) {
 		if (tickImuReads > 0) {
 			DeadReckoner::printData();

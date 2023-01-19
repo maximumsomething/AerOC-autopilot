@@ -31,3 +31,6 @@ void readAirspeed();
 };
 
 float getBaromAltitude();
+
+void gpsSetup();
+void readGps();
