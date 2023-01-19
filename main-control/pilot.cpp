@@ -121,9 +121,11 @@ float calcTargetVertSpeed() {
 	}
 }
 
+int pilotLastPrintTime = 0;
+
 // PID classes
 kpid aileronControl(-1, 1, 0, 1.0/30.0, .25 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0, 0.1);
-kpid pitchControl(MIN_PITCH, MAX_PITCH, 0, MAX_PITCH / MAX_CLIMB_RATE, 0, 0, 10); // todo: figure out constants better
+kpid pitchControl(MIN_PITCH, MAX_PITCH, 0, MAX_PITCH / MAX_CLIMB_RATE * 0.5, 0, 0, 10); // todo: figure out constants better
 // kp: estimated by manual pilot
 // ki: We want to reach an integral term of 1/3 within 2 seconds
 // ends up being: 1 / ((1/2) * seconds * desiredTerm * (1/kp))
@@ -139,7 +141,7 @@ void pilotLoop() {
 	// if (current airspeed - safe airspeed) < val then calculate something from (current airspeed - safe airspeed)
 	// (PI loop) - something
 	// figure out the PI coefficients later
-	float targetPitch = pitchControl.update(targetVertSpeed, DeadReckoner::getVerticalSpeed());
+	float targetPitch = -pitchControl.update(targetVertSpeed, DeadReckoner::getVerticalSpeed());
 	float airspeed = airspeedCalc::airspeed;
 	if (airspeed < AIRSPEED_CORRECTION_START && !TEST_MODE) {
 		targetPitch -= AIRSPEED_CORRECTION_FACTOR * (AIRSPEED_CORRECTION_START - airspeed);
@@ -157,7 +159,10 @@ void pilotLoop() {
 
 	//TODO - yaw
 
-	telem_controlOut(targetVertSpeed, targetPitch, throttleSignal, elevatorSignal, aileronSignal);
+	if (millis() - pilotLastPrintTime >= 200) {
+		telem_controlOut(targetVertSpeed, targetPitch, throttleSignal, elevatorSignal, aileronSignal);
+		pilotLastPrintTime = millis();
+	}
 
 
 	//all control outputs and intermediate crap

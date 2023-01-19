@@ -57,7 +57,8 @@ namespace DeadReckoner {
 		constexpr float maxGDiff = 0.2;
 #else
 		constexpr float maxDps = 0.5;
-		constexpr float maxGDiff = 0.05;
+		//constexpr float maxGDiff = 0.05;
+		constexpr float maxGDiff = 0.08;
 #endif
 		bool gyroStable = fabs(data.gyrox) < maxDps && fabs(data.gyroy) < maxDps && fabs(data.gyroz) < maxDps;
 		if (!gyroStable) return false;

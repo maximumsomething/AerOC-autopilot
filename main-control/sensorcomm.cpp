@@ -371,8 +371,8 @@ int altimeterResets = 0;
 int altimeterBadTicks = 0;
 
 void readAltimeter() {
-	if (altimeterResets == 2) {
-		telem_strmessage("ERROR: bad altimeter\n\n\n");
+	if (altimeterResets == 3) {
+		//telem_strmessage("ERROR: bad altimeter\n\n\n");
 	}
 
     struct bmp3_status status = { { 0 } };
