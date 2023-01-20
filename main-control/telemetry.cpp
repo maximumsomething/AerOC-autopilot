@@ -5,9 +5,71 @@
 
 #include <stdint.h>
 #include <vector>
+#include <SdFat.h>
+#include <BufferedPrint.h>
 
 HardwareSerial* telem_serial = &Serial1;
-Stream* telem_save_stream = &Serial;
+Print* telem_save_stream = &Serial;
+
+
+
+// Make a SdFat BufferedPrint behave like a Arduino Stream
+class FilePrintStream : public Print {
+public:
+	FilePrintStream(File32* theFile): theFile(theFile) {}
+private:
+	File32* theFile;
+
+	size_t write(const uint8_t *buffer, size_t size) override {
+		return theFile->write(buffer, size);
+	}
+	size_t write(uint8_t b) override {
+		return theFile->write(b);
+	}
+	// could implement Print::availableForWrite if wanted
+};
+
+SdFat32 sd;
+File32 sdFile;
+FilePrintStream logFileStream(&sdFile);
+#define TELEM_SAVE_DIR "aeroc_pilot_telem"
+
+bool setupSdCardTelem() {
+	if (!sd.begin(SdioConfig(FIFO_SDIO))) {
+		Serial.println("Error in sd.begin()");
+		return false;
+	}
+	if (!sd.exists(TELEM_SAVE_DIR)) {
+		if (!sd.mkdir(TELEM_SAVE_DIR)) {
+			Serial.println("Could not create save directory");
+			return false;
+		}
+	}
+	// find the first number that doesn't exist
+	constexpr char filenameFormat[] = TELEM_SAVE_DIR "/%d.log";
+	int fileNumber = 0;
+	char filename[sizeof(filenameFormat) + 10];
+	do {
+		fileNumber++;
+		snprintf(filename, sizeof(filename), filenameFormat, fileNumber);
+	} while (sd.exists(filename));
+
+	sdFile = sd.open(filename, O_WRITE | O_CREAT);
+	if (!sdFile.isFile()) {
+		Serial.printf("Could not open %s\n", filename);
+		return false;
+	}
+	Serial.printf("Log file: %s\n", filename);
+
+	// Example code has a file.preAllocate(LOG_FILE_SIZE), but I'm leaving that out for now
+
+	//logFileStream = FilePrintStream(&sdFile);
+	telem_save_stream = &logFileStream;
+	return true;
+}
+void flushSdCardTelem() {
+	sdFile.flush();
+}
 
 void print_telem_timestamp() {
 	int32_t curMillis = millis();
@@ -136,10 +198,10 @@ bool canSendMessage(int length) {
 	if (length > telem_serial->availableForWrite()) return false;
 
 	// Pause for 100 ms every 50 ms to allow acks to get through the half-duplex link
-	/*if (curTime - pauseEndMillis > 50) {
+	if (curTime - pauseEndMillis > 50) {
 		pauseEndMillis = curTime + 100;
 		return false;
-	}*/
+	}
 
 	return true;
 }

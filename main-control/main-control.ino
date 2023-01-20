@@ -7,6 +7,7 @@
 
 void setup() {
 	setupAllComms();
+	setupSdCardTelem();
 	pilotSetup();
 	telem_strmessage("Initialization complete");
 }
@@ -60,15 +61,22 @@ void loop() {
 		readAltimeter();
 	}
 
+	airspeedCalc::readAirspeed();
+
 	pilotLoop();
 	//Serial.println(micros() - startTime);
 	// do at 50 Hz
-	airspeedCalc::readAirspeed();
 	//Serial.println(micros() - startTime);
 
-	readGps();
+	//readGps();
 
-	if (startTime > lastPrintTime + 200000) {
+	// do at 1 Hz
+	if (loopCounter % 50 == 0) {
+		// Not ideal (waits for the write to complete), but needs to be done, or else there is sometimes no writing at all
+		flushSdCardTelem();
+	}
+
+	//if (startTime > lastPrintTime + 200000) {
 		if (tickImuReads > 0) {
 			DeadReckoner::printData();
 			lastPrintTime = startTime;
@@ -76,7 +84,7 @@ void loop() {
 			//Serial.printf("gx=%f, gy=%f, gz=%f\n", imuData.gyrox, imuData.gyroy, imuData.gyroz);
 			telem_airspeed(airspeedCalc::airspeed, airspeedCalc::avgPressureDiff);
 		}
-	}
+	//}
 	int endTime = micros();
 	//Serial.printf("loop took %d us\n", endTime - startTime);
 	// make loop

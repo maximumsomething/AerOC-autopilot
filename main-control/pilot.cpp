@@ -130,7 +130,7 @@ float calcTargetVertSpeed() {
 	}
 }
 
-unsigned long pilotLastPrintTime = 0;
+//unsigned long pilotLastPrintTime = 0;
 
 // PID classes
 // the correct constant is on the order of magnitude of 1, so why not just have it be 1?
@@ -196,10 +196,10 @@ void pilotLoop() {
 	rudderSignal *= 0.6;
 
 
-	if (millis() - pilotLastPrintTime >= 200) {
+	//if (millis() - pilotLastPrintTime >= 200) {
 		telem_controlOut(targetVertSpeed, targetPitch, throttleSignal, elevatorSignal, aileronSignal);
-		pilotLastPrintTime = millis();
-	}
+		//pilotLastPrintTime = millis();
+	//}
 
 
 	//all control outputs and intermediate crap

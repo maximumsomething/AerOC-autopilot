@@ -255,16 +255,20 @@ namespace DeadReckoner {
 			verticalSpeedCalculator.lastVal = 0;
 			altitudeCalculator.lastVal = getBaromAltitude();
 
+		// //}
+		if (!downCalibrated) {
+			Serial.printf("***Calibrated down: calibratedG=%f, angleFromDown=%f\n\n\n", calibratedG, angleFromDown.angularDistance(Quaternionf::Identity()) * 180 / M_PI);
+			telem_strmessage("Calibration complete");
+
 			// light up onboard LED when calibrated
 			digitalWrite(13, HIGH);
-
-		// //}
-		if (!downCalibrated) Serial.printf("***Calibrated down: calibratedG=%f, angleFromDown=%f\n\n\n", calibratedG, angleFromDown.angularDistance(Quaternionf::Identity()) * 180 / M_PI);
+		}
 
 		downCalibrated = true;
 	}
 
 	void resetCalibration() {
+		downCalibrated = false;
 		referenceRotation = Quaternionf::Identity();
 		digitalWrite(13, LOW);
 	}
