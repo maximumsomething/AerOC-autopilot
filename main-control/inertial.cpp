@@ -34,7 +34,7 @@ namespace DeadReckoner {
 	Quaternionf rawAttitude = Quaternionf::Identity(); //current rotation quaternion direct from the board
 	Quaternionf calibratedAttitude = Quaternionf::Identity(); //current rotation quaternion, relative to the reference rotation
 	Vector3f rawAccel = Vector3f::Zero(); //current rawAcceleration direct from the sensor
-	Vector3f calibratedAccel= Vector3f::Zero(); //current rawAcceleration multiplied by calibrated attitude
+	Vector3f calibratedAccel = Vector3f::Zero(); //current rawAcceleration multiplied by calibrated attitude - x is forward at the time of calibration, z is up, y is right
 	float calibratedG = 1.0; // gravity, should be very close to 1g
 
 	constexpr int samplesToCalibrate = 400; // two seconds
@@ -265,6 +265,7 @@ namespace DeadReckoner {
 	float getRoll() {return roll;}
 	float getPitch() {return pitch;}
 	float getBearing() {return bearing;}
-	float getVerticalSpeed() { return verticalSpeedCalculator.lastVal; }
-	float getAltitude() { return altitudeCalculator.lastVal; }
+	float getVerticalSpeed() {return verticalSpeedCalculator.lastVal; }
+	float getAltitude() {return altitudeCalculator.lastVal; }
+	Vector3f getCalibratedAccel() {return calibratedAccel;}
 }

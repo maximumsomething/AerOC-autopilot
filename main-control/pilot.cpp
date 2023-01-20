@@ -163,7 +163,7 @@ void pilotLoop() {
 	float throttleSignal = throttleControl.update(targetSpeed, airspeed);
 	
 	// control aileron to set roll
-	float targetRoll = rollControl.update(targetBearing, DeadReckoner::getBearing());
+	float targetRoll = rollControl.update(targetBearing, DeadReckoner::getBearing  ());
 	float aileronSignal = aileronControl.update(targetRoll, DeadReckoner::getRoll());
 
 	//TODO - yaw

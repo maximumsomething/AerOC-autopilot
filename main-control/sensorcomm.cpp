@@ -537,31 +537,3 @@ namespace airspeedCalc {
 		//telem_airspeed(airspeed, avgPressureDiff);
 	}
 }
-
-
-// Prevent GPSport.h from being included
-#define GPSport_h
-// Configure our own serial port for the parser
-#define gpsPort Serial5
-#define GPS_PORT_NAME "Serial5"
-#define DEBUG_PORT Serial
-// Include the header after the above are configured
-#include <NMEAGPS.h>
-
-// For printing GPS output
-#include <Streamers.h>
-
-
-NMEAGPS gps;
-gps_fix fix;
-
-void gpsSetup() {
-	gpsPort.begin(9600);
-}
-
-void readGps() {
-	while (gps.available( gpsPort )) {
-		fix = gps.read();
-		trace_all( DEBUG_PORT, gps, fix );
-	}
-}
