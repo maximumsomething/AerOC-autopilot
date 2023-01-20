@@ -68,7 +68,7 @@ void loop() {
 	// do at 50 Hz
 	//Serial.println(micros() - startTime);
 
-	//readGps();
+	readGps();
 
 	// do at 1 Hz
 	if (loopCounter % 50 == 0) {

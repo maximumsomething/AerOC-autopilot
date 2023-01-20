@@ -511,6 +511,13 @@ namespace airspeedCalc {
 		if (actualSamples == 0) {
 			Serial.println("airspeed sensor not responding");
 			++airspeedMisreadTicks;
+			if (airspeedMisreadTicks % 10 == 0) {
+				// reset the bus
+				// disable the interrupt while we do it
+				pollingTimer.end();
+				master->end();
+				airspeedSetup();
+			}
 			if (airspeedMisreadTicks == 25) {
 				// error message, once
 				telem_strmessage("ERROR: airspeed out\n\n");
