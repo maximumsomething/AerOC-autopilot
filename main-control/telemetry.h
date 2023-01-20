@@ -11,6 +11,7 @@ void print_telem_timestamp();
 void dispatch_telem_packet(uint8_t id, uint16_t length, const void* data);
 
 extern HardwareSerial* telem_serial;
-extern Stream* telem_save_stream;
+extern Print* telem_save_stream;
 
-
+bool setupSdCardTelem();
+void flushSdCardTelem();

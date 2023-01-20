@@ -12,10 +12,17 @@
  * Reference rotation: a quaternion equaling what the raw attitude would be when pointed horizontally and "north".
  * Raw attitude: The quaternion directly from the sensor.
  * Calibrated attitude: The raw attitude minus (i.e. multiplied by the inverse of) the reference rotation.
+ * Calibrated acceleration: The accelerometer output transformed by the calibrated attitude.
  * "down": 3D unit vector pointing towards the center of the earth.
  * horizontal plane: The plane orthogonal to down.
  * Pitch & roll: Derived by the offset of the current attitude from the horizontal plane.
  * Bearing: an angle from north on the horizontal plane.
+ *
+ * Directions:
+ * For calibratedAccel, up is +z, forward is +x, and left is +y.
+ * For pitch, up is positive and down is negative.
+ * For roll, left (CCW) is negative and right (CW) is positive.
+ * For bearing, it is like a compass heading: right (clockwise) is positive when looking down.
  */
 
 namespace DeadReckoner {
@@ -248,16 +255,20 @@ namespace DeadReckoner {
 			verticalSpeedCalculator.lastVal = 0;
 			altitudeCalculator.lastVal = getBaromAltitude();
 
+		// //}
+		if (!downCalibrated) {
+			Serial.printf("***Calibrated down: calibratedG=%f, angleFromDown=%f\n\n\n", calibratedG, angleFromDown.angularDistance(Quaternionf::Identity()) * 180 / M_PI);
+			telem_strmessage("Calibration complete");
+
 			// light up onboard LED when calibrated
 			digitalWrite(13, HIGH);
-
-		// //}
-		if (!downCalibrated) Serial.printf("***Calibrated down: calibratedG=%f, angleFromDown=%f\n\n\n", calibratedG, angleFromDown.angularDistance(Quaternionf::Identity()) * 180 / M_PI);
+		}
 
 		downCalibrated = true;
 	}
 
 	void resetCalibration() {
+		downCalibrated = false;
 		referenceRotation = Quaternionf::Identity();
 		digitalWrite(13, LOW);
 	}

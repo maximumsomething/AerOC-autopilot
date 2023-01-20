@@ -22,13 +22,14 @@ constexpr float MAX_ROLL = 30;
 constexpr float TOP_SPEED = 12; // Theoretical top airspeed used for calculating throttle
 
 constexpr bool TEST_MODE = false; //Test mode, disables throttle if true
+#define NO_PILOT_START // Defined when there is no way of knowing when the autopilot starts
 
 // in theory could be set dynamically, but are constants right now
 float targetSpeed = 8;
-// set when autopilot is enabled
+// set when autopilot is enabled. Unused if NO_PILOT_START.
 float targetAltitude;
-// set when the autopilot is enabled
-float targetBearing;
+// set when the autopilot is enabled.
+float targetBearing = 180;
 
 // utility functions
 
@@ -91,6 +92,10 @@ class kpid {
 };
 
 //Servo control instances
+// Positive rudder values move the rudder right, turning the plane right
+// Positive elevator values push the elevator up, turning the plane up
+// Positive aileron values roll the left wing down (roll it CCW).
+
 PWMServo aileronServo; //Handlers for control axes should always be declared in the order they are arranged on the receiver - Ailerons/Roll, Elevator/Pitch, Throttle/Speed, Rudder/Yaw
 PWMServo elevatorServo;
 PWMServo throttleServo;
@@ -125,13 +130,14 @@ float calcTargetVertSpeed() {
 	}
 }
 
-unsigned long pilotLastPrintTime = 0;
+//unsigned long pilotLastPrintTime = 0;
 
 // PID classes
-kpid rollControl(MAX_ROLL * -1, MAX_ROLL, 0, 1, 0, 0);
+// the correct constant is on the order of magnitude of 1, so why not just have it be 1?
+//kpid rollControl(MAX_ROLL * -1, MAX_ROLL, 0, 1, 0, 0);
 kpid aileronControl(-1, 1, 0, 1.0/30.0, .25 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0, 0.1);
-
-kpid pitchControl(MIN_PITCH, MAX_PITCH, 0, MAX_PITCH / MAX_CLIMB_RATE * 0.5, 0, 0, 10); // todo: figure out constants better
+// todo: figure out constants better
+kpid pitchControl(MIN_PITCH, MAX_PITCH, 0, MAX_PITCH / MAX_CLIMB_RATE * 0.5, 0, 0, 10);
 // kp: estimated by manual pilot
 // ki: We want to reach an integral term of 1/3 within 2 seconds
 // ends up being: 1 / ((1/2) * seconds * desiredTerm * (1/kp))
@@ -139,11 +145,13 @@ kpid elevatorControl(-1, 1, 0, 1.0/30.0, 1.0 / ((30.0 * (1.0/3.0)) * 2.0 * (1.0 
 // just kinda guessing at good constants here
 kpid throttleControl(0, 1, 1 / TOP_SPEED, 0.7 / TOP_SPEED, 0, 0);
 //Constants determined by vibes
-kpid rudderControl(-1, 1, 0, 1.0/30.0, 0, 0);
 
 void pilotLoop() {
-	//const float targetVertSpeed = calcTargetVertSpeed();
+#ifdef NO_PILOT_START
 	constexpr float targetVertSpeed = 0;
+#else
+	const float targetVertSpeed = calcTargetVertSpeed();
+#endif
 
 	// calculate desired pitch from target vertical speed and current airspeed
 	// if (current airspeed - safe airspeed) < val then calculate something from (current airspeed - safe airspeed)
@@ -163,16 +171,35 @@ void pilotLoop() {
 	float throttleSignal = throttleControl.update(targetSpeed, airspeed);
 	
 	// control aileron to set roll
-	float targetRoll = rollControl.update(targetBearing, DeadReckoner::getBearing  ());
-	float aileronSignal = aileronControl.update(targetRoll, DeadReckoner::getRoll());
+	//float targetRoll = rollControl.update(targetBearing, DeadReckoner::getBearing());
+	// Calculate the angular difference from the target
+	float bearingDiff = DeadReckoner::getBearing() - targetBearing;
+	if (bearingDiff < -180) bearingDiff += 360;
+	if (bearingDiff > 180) bearingDiff -= 360;
 
-	//TODO - yaw
-	float rudderSignal = rudderControl.update(targetBearing, DeadReckoner::getBearing());
+	// don't use kpid class, because we don't need i and d terms and we have a difference not a target and input
+	// the correct kP is on the order of magnitude of 1, so why not just have it be 1?
+	float targetRoll = 1 * bearingDiff;
+	targetRoll = fmax(targetRoll, -MAX_ROLL);
+	targetRoll = fmin(targetRoll, MAX_ROLL);
 
-	if (millis() - pilotLastPrintTime >= 200) {
+	float aileronSignal = -aileronControl.update(targetRoll, DeadReckoner::getRoll());
+
+	//float rudderSignal = rudderControl.update(targetBearing, DeadReckoner::getBearing());
+	//Constants determined by vibes
+	float rudderSignal = -(1.0/30.0) * bearingDiff;
+	rudderSignal = fmax(rudderSignal, -1);
+	rudderSignal = fmin(rudderSignal, 1);
+	//float rudderSignal = 0;
+
+	// aircraft specific rudder settings
+	rudderSignal *= 0.6;
+
+
+	//if (millis() - pilotLastPrintTime >= 200) {
 		telem_controlOut(targetVertSpeed, targetPitch, throttleSignal, elevatorSignal, aileronSignal);
-		pilotLastPrintTime = millis();
-	}
+		//pilotLastPrintTime = millis();
+	//}
 
 
 	//all control outputs and intermediate crap
@@ -185,5 +212,5 @@ void pilotLoop() {
 	elevatorServo.write(elevatorSignal);
 	if(!TEST_MODE) throttleServo.write(throttleSignal);
 	else throttleServo.write(0);
-	rudderServo.write(90);
+	rudderServo.write((rudderSignal * 90) + 90);
 }
