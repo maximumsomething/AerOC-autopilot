@@ -4,8 +4,10 @@
 #include "sensorcomm.h"
 #include "inertial.h"
 #include "pilot.h"
+#include "gpsnav.h"
 
 void setup() {
+	GPSNav::gpsSetup();
 	setupAllComms();
 	setupSdCardTelem();
 	pilotSetup();
@@ -68,7 +70,7 @@ void loop() {
 	// do at 50 Hz
 	//Serial.println(micros() - startTime);
 
-	readGps();
+	GPSNav::updatenav();
 
 	// do at 1 Hz
 	if (loopCounter % 50 == 0) {

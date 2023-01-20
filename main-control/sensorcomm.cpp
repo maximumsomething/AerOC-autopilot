@@ -19,7 +19,6 @@ void setupAllComms() {
 	imuSetup();
 	altimeterSetup();
 	airspeedCalc::airspeedSetup();
-	gpsSetup();
 	// status LED
 	pinMode(13, OUTPUT);
 
