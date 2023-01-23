@@ -20,6 +20,6 @@ namespace DeadReckoner {
 	float getBearing();
 	float getVerticalSpeed();
 	float getAltitude();
-	Vector3f getCalibratedAccel()
-	Vector3f getGPSVelocity()
+	//Vector3f getCalibratedAccel();
+	//Vector3f getGPSVelocity();
 };
