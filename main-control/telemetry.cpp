@@ -13,22 +13,14 @@ HardwareSerial* telem_serial = &Serial1;
 Print* telem_save_stream = &Serial;
 
 
+void sdfatDateTime(uint16_t* date, uint16_t* time) {
 
-// Make a SdFat BufferedPrint behave like a Arduino Stream
-class FilePrintStream : public Print {
-public:
-	FilePrintStream(File32* theFile): theFile(theFile) {}
-private:
-	File32* theFile;
+  // return date using FAT_DATE macro to format fields
+  *date = FAT_DATE(year(), month(), day());
 
-	size_t write(const uint8_t *buffer, size_t size) override {
-		return theFile->write(buffer, size);
-	}
-	size_t write(uint8_t b) override {
-		return theFile->write(b);
-	}
-	// could implement Print::availableForWrite if wanted
-};
+  // return time using FAT_TIME macro to format fields
+  *time = FAT_TIME(hour(), minute(), second());
+}
 
 SdFat32 sd;
 File32 sdFile;
@@ -46,6 +38,8 @@ bool setupSdCardTelem() {
 			return false;
 		}
 	}
+	// Set the provider for file modification dates
+	SdFile::dateTimeCallback(&sdfatDateTime);
 	// find the first number that doesn't exist
 	constexpr char filenameFormat[] = TELEM_SAVE_DIR "/%d.log";
 	int fileNumber = 0;
@@ -65,7 +59,8 @@ bool setupSdCardTelem() {
 	// Example code has a file.preAllocate(LOG_FILE_SIZE), but I'm leaving that out for now
 
 	//logFileStream = FilePrintStream(&sdFile);
-	telem_save_stream = &logFileStream;
+	//telem_save_stream = &logFileStream;
+	telem_save_stream = &sdFile;
 	return true;
 }
 void flushSdCardTelem() {

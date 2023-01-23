@@ -1,22 +1,30 @@
+//Project includes
+#include "gpsnav.h"
+#include "sensorcomm.h"
+#include "inertial.h"
+#include "pilot.h"
+#include "ringbuffer.h"
+
+// Instead of editing library files, we are adding definitions here to avoid synchronization nightmares
 // Prevent GPSport.h from being included
 #define GPSport_h
 // Configure our own serial port for the parser
 #define gpsPort Serial5
 #define GPS_PORT_NAME "Serial5"
 #define DEBUG_PORT Serial
-// Include the header after the above are configured
+
+// Change the configuration according to the output of the NMEAOrder.ino example code
+#include <NMEAGPS_cfg.h>
+#undef LAST_SENTENCE_IN_INTERVAL
+#define LAST_SENTENCE_IN_INTERVAL NMEAGPS::NMEA_GLL
 #include <NMEAGPS.h>
+
 // For printing GPS output
 #include <Streamers.h>
 
 #include <math.h>
 #include <eigen.h>
 //#include <Eigen/Geometry>
-//Project includes
-#include "sensorcomm.h"
-#include "inertial.h"
-#include "pilot.h"
-#include "ringbuffer.h"
 // For setting the clock
 #include <TimeLib.h>
 #include <NeoTime.h>
@@ -37,22 +45,22 @@ namespace GPSNav {
 	Vector2f velocity = Vector2f::Zero(); // x is north, y is west
 
 	time_t getTeensy3Time() {
+		Serial.println("getTeensy3Time");
 		return Teensy3Clock.get();
 	}
 
 	void gpsSetup() {
 		gpsPort.begin(9600);
-		// Sets TimeLib provider
-		setSyncProvider(getTeensy3Time);
 	}
 
 	// Update the RTC using the current GPS fix time
 	void updateClock() {
 		if (fix.valid.time) {
-			Serial.println("Setting RTC");
 			uint32_t secondsSince2000 = fix.dateTime;
+			//Serial.printf("Setting RTC: Seconds since epoch: %d\n", secondsSince2000);
 			// Convert to Jan 1, 1970 epoch
 			Teensy3Clock.set(secondsSince2000 + 946684800);
+			setSyncProvider(&getTeensy3Time);
 		}
 	}
 
@@ -62,6 +70,7 @@ namespace GPSNav {
 	void updatenav() {
         
 		if(gps.available( gpsPort )) {
+			trace_all( DEBUG_PORT, gps, fix );
 			fix = gps.read();
 			updateClock();
 
@@ -86,7 +95,5 @@ namespace GPSNav {
 		}
 
         bearingToTarget = curLocation.BearingToDegrees(tarLocation);
-
-		trace_all( DEBUG_PORT, gps, fix );
 	}
 }

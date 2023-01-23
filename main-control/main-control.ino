@@ -7,8 +7,8 @@
 #include "gpsnav.h"
 
 void setup() {
-	GPSNav::gpsSetup();
 	setupAllComms();
+	GPSNav::gpsSetup();
 	setupSdCardTelem();
 	pilotSetup();
 	telem_strmessage("Initialization complete");
