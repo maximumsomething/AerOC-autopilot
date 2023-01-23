@@ -8,8 +8,10 @@
 #include <NMEAGPS.h>
 // For printing GPS output
 #include <Streamers.h>
+
+#include <math.h>
 #include <eigen.h>
-#include <Eigen/Geometry>
+//#include <Eigen/Geometry>
 //Project includes
 #include "sensorcomm.h"
 #include "inertial.h"
@@ -21,7 +23,7 @@
 
 namespace GPSNav {
     using Eigen::Vector3f;
-	using Eigen::Quaternionf;
+    using Eigen::Vector2f;
 
     NMEAGPS gps;
     gps_fix fix;
@@ -32,12 +34,10 @@ namespace GPSNav {
     float bearingError; //a number by which we rotate our reference rotation about the unit z axis by to make it point towards true north.
     float bearingToTarget; //calculated bearing to our target location
 
-    float nSpeed; //Northerly speed in m/s
-    float eSpeed; //Easterly speed in m/s
-    Vector3f GPSAccel = Vector3f::Zero();
+    Vector2f velocity = Vector2f::Zero(); // x is north, y is west
 
     time_t getTeensy3Time() {
-    return Teensy3Clock.get();
+        return Teensy3Clock.get();
     }
 
     void gpsSetup() {
@@ -61,14 +61,15 @@ namespace GPSNav {
         if(gps.available( gpsPort )) {
             fix = gps.read();
             updateClock();
-            currentLoc = Location_t(fix.lattitudeDMS.degrees, fix.longitudeDMS.degrees);
+            currentLoc = fix.location;
 
             bearingToTarget = fix.location.BearingToDegrees(targetLoc);
-            nSpeed = fix.velocity_north/100.0;
-            eSpeed = fix.velocity_east/100.0;
-        }else{
-            GPSAccel = DeadReckoner::getCalibratedAccel(); //this is meant to be accel s.t. x is north and z is up and whatever
-            GPSAccel[2] = 0;
+            float speed_mps = fix.speed_metersph() / 3600.0;
+            float heading_rad = fix.heading() / 180.0 * M_PI;
+            velocity = Vector2f(cos(heading_rad) * speed_mps, -sin(heading_rad) * speed_mps);
+
+        } else {
+
         }
 
         trace_all( DEBUG_PORT, gps, fix );
