@@ -498,7 +498,7 @@ namespace airspeedCalc {
 		for (int i = 0; i < SAMPLES_PER_READ && i < sampleIdx; ++i) {
 			uint8_t *buf = sensor_buf + i * SAMPLE_SIZE;
 			uint16_t pres_cnts = static_cast<uint16_t>(buf[0] & 0x3F) << 8 | buf[1];
-			uint16_t temp_cnts = static_cast<uint16_t>(buf[2]) << 3 | buf[3] & 0xE0 >> 5;
+			//uint16_t temp_cnts = static_cast<uint16_t>(buf[2]) << 3 | (buf[3] & 0xE0) >> 5;
 			if (pres_cnts != 0) {
 				totalPresCounts += pres_cnts;
 				actualSamples++;

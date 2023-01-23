@@ -263,7 +263,7 @@ void dispatch_telem_packet(uint8_t id, uint16_t length, const void* data) {
 	else {
 
 		// enqueue packet, replacing any previously queued packet of this message type
-		MessageNode* node = getQueuedMessage(id);
+		MessageNode* node = getQueuedMessage((telem_id) id);
 
 		// if the node is not already in the queue
 		if (node->newer == nullptr && node->older == nullptr) {
