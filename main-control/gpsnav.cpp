@@ -8,18 +8,22 @@
 #include <NMEAGPS.h>
 // For printing GPS output
 #include <Streamers.h>
+
+#include <math.h>
 #include <eigen.h>
-#include <Eigen/Geometry>
-#include <cmath>
+//#include <Eigen/Geometry>
 //Project includes
 #include "sensorcomm.h"
 #include "inertial.h"
 #include "pilot.h"
 #include "ringbuffer.h"
+// For setting the clock
+#include <TimeLib.h>
+#include <NeoTime.h>
 
 namespace GPSNav {
     using Eigen::Vector3f;
-	using Eigen::Quaternionf;
+    using Eigen::Vector2f;
 
     NMEAGPS gps;
     gps_fix fix;
@@ -30,26 +34,44 @@ namespace GPSNav {
     float bearingError; //a number by which we rotate our reference rotation about the unit z axis by to make it point towards true north.
     float bearingToTarget; //calculated bearing to our target location
 
-    float nSpeed; //Northerly speed in m/s
-    float eSpeed; //Easterly speed in m/s
+    Vector2f velocity = Vector2f::Zero(); // x is north, y is west
+
+    time_t getTeensy3Time() {
+        return Teensy3Clock.get();
+    }
 
     void gpsSetup() {
         gpsPort.begin(9600);
+        // Sets TimeLib provider
+        setSyncProvider(getTeensy3Time);
+    }
 
+    // Update the RTC using the current GPS fix time
+    void updateClock() {
+        if (fix.valid.time) {
+            Serial.println("Setting RTC");
+            uint32_t secondsSince2000 = fix.dateTime;
+            // Convert to Jan 1, 1970 epoch
+            Teensy3Clock.set(secondsSince2000 + 946684800);
+            // Doesn't work???
+        }
     }
 
 
     void updatenav() {
         if(gps.available( gpsPort )) {
             fix = gps.read();
-            curLocation = Location_t(fix.lattitudeDMS.degrees, fix.longitudeDMS.degrees);
+            updateClock();
+            currentLoc = fix.location;
 
-            bearingToTarget = fix.location.BearingToDegrees(tarLocation);
-            nSpeed = fix.velocity_north/100.0;
-            eSpeed = fix.velocity_east/100.0;
-        }else{
-            nSpeed += DeadReckoner::getGPSVelocity()[0];
-            eSpeed += DeadReckoner::getGPSVelocity()[1];
+            bearingToTarget = fix.location.BearingToDegrees(targetLoc);
+            float speed_mps = fix.speed_metersph() / 3600.0;
+            float heading_rad = fix.heading() / 180.0 * M_PI;
+            velocity = Vector2f(cos(heading_rad) * speed_mps, -sin(heading_rad) * speed_mps);
+
+        } else {
+            velocity[0] += DeadReckoner::getGPSVelocity()[0];
+            velocity[1] += DeadReckoner::getGPSVelocity()[1];
             
             offsetBearing = atan2(eSpeed, nSpeed);
             offsetDistance = (sqrt(powf(eSpeed, 2)+ powf(nSpeed,2)) * .02); //Offset distance for currentLocation this tick in m
