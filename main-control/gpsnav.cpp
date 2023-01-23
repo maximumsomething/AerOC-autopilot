@@ -57,28 +57,36 @@ namespace GPSNav {
         }
     }
 
+    //Vector2f posErrorAvg = Vector2f::Zero(); //store the exponentially weighted time average of position errors. x is distance y is bearing
+    //float posSmoothing = .2;
 
     void updatenav() {
+        
         if(gps.available( gpsPort )) {
             fix = gps.read();
             updateClock();
+
+            //maintain an exponentially weighted time average of position errors which we add to each new fix. Error vector goes from GPS fix to inertial location
+            //Vector2f curPosError = Vector2f::Zero(); //x north y is west
+            //curPosError[0] = fix.location.DistanceKm(curLocation) * cosf(fix.location.BearingToDegrees(curLocation)) * 1000.0 * posSmoothing;
+            //curPosError[1] = fix.location.DistanceKm(curLocation) * -sinf(fix.location.BearingToDegrees(curLocation)) * 1000.0 * posSmoothing;;           
+            
             currentLoc = fix.location;
 
             bearingToTarget = fix.location.BearingToDegrees(targetLoc);
             float speed_mps = fix.speed_metersph() / 3600.0;
             float heading_rad = fix.heading() / 180.0 * M_PI;
             velocity = Vector2f(cos(heading_rad) * speed_mps, -sin(heading_rad) * speed_mps);
-
-        } else {
-            velocity[0] += DeadReckoner::getGPSVelocity()[0];
-            velocity[1] += DeadReckoner::getGPSVelocity()[1];
-            
-            offsetBearing = atan2(eSpeed, nSpeed);
-            offsetDistance = (sqrt(powf(eSpeed, 2)+ powf(nSpeed,2)) * .02); //Offset distance for currentLocation this tick in m
+        }else{
+            velocity[1] += DeadReckoner::getGPSVelocity()[0];
+            velocity[0] += DeadReckoner::getGPSVelocity()[1];
+                
+            offsetBearing = atan2(velocity[1], velocity[0]);
+            offsetDistance = (sqrt(powf(velocity[1], 2)+ powf(velocity[0],2)) * .02); //Offset distance for currentLocation this tick in m
             curLocation = curLocation.OffsetBy(offsetBearing, offsetDistance);
-
-            bearingToTarget = curLocation.BearingToDegrees(tarLocation);
         }
+
+        bearingToTarget = curLocation.BearingToDegrees(tarLocation);
 
         trace_all( DEBUG_PORT, gps, fix );
     }

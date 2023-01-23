@@ -444,7 +444,6 @@ float getBaromAltitude(){
 	return baromAltitude;
 }
 
-
 namespace airspeedCalc {
 
 	float airspeed = 0;
