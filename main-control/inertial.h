@@ -20,6 +20,8 @@ namespace DeadReckoner {
 	float getBearing();
 	float getVerticalSpeed();
 	float getAltitude();
-	//Vector3f getCalibratedAccel();
-	//Vector3f getGPSVelocity();
+	void resetPositionReckoning(float newXVel, float newYVel);
+	// We want to avoid Eigen classes outside of the couple files that actually use them because of compile times
+	float horizontalX();
+	float horizontalY();
 };

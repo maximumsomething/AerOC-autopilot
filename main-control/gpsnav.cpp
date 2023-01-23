@@ -4,6 +4,7 @@
 #include "inertial.h"
 #include "pilot.h"
 #include "ringbuffer.h"
+#include "telemetry.h"
 
 // Instead of editing library files, we are adding definitions here to avoid synchronization nightmares
 // Prevent GPSport.h from being included
@@ -42,8 +43,6 @@ namespace GPSNav {
 	float bearingError; //a number by which we rotate our reference rotation about the unit z axis by to make it point towards true north.
 	float bearingToTarget; //calculated bearing to our target location
 
-	Vector2f velocity = Vector2f::Zero(); // x is north, y is west
-
 	time_t getTeensy3Time() {
 		Serial.println("getTeensy3Time");
 		return Teensy3Clock.get();
@@ -74,26 +73,37 @@ namespace GPSNav {
 			fix = gps.read();
 			updateClock();
 
-            //maintain an exponentially weighted time average of position errors which we add to each new fix. Error vector goes from GPS fix to inertial location
-            //Vector2f curPosError = Vector2f::Zero(); //x north y is west
-            //curPosError[0] = fix.location.DistanceKm(curLocation) * cosf(fix.location.BearingToDegrees(curLocation)) * 1000.0 * posSmoothing;
-            //curPosError[1] = fix.location.DistanceKm(curLocation) * -sinf(fix.location.BearingToDegrees(curLocation)) * 1000.0 * posSmoothing;;           
-            
-			currentLoc = fix.location;
+			if (fix.valid.location) {
 
-			bearingToTarget = fix.location.BearingToDegrees(targetLoc);
-			float speed_mps = fix.speed_metersph() / 3600.0;
-			float heading_rad = fix.heading() / 180.0 * M_PI;
-			velocity = Vector2f(cos(heading_rad) * speed_mps, -sin(heading_rad) * speed_mps);
-        }else{
-            velocity[1] += DeadReckoner::getGPSVelocity()[0];
-            velocity[0] += DeadReckoner::getGPSVelocity()[1];
-                
-            offsetBearing = atan2(velocity[1], velocity[0]);
-            offsetDistance = (sqrt(powf(velocity[1], 2)+ powf(velocity[0],2)) * .02); //Offset distance for currentLocation this tick in m
-            curLocation = curLocation.OffsetBy(offsetBearing, offsetDistance);
+				currentLoc = fix.location;
+
+				bearingToTarget = fix.location.BearingToDegrees(targetLoc);
+
+				// Todo: there's some fuckery that needs to be done with GPS vs. inertial bearings
+				// For now, just update it every fix
+				bearingError = fix.heading() - DeadReckoner::getBearing();
+				float speed_mps = fix.speed_metersph() / 3600.0;
+				float heading_rad = (fix.heading() - bearingError) / 180.0 * M_PI;
+
+				DeadReckoner::resetPositionReckoning(cos(heading_rad) * speed_mps, -sin(heading_rad) * speed_mps);
+
+				telem_gpsFix(currentLoc.lat(), currentLoc.lon());
+			}
+
+
+        } else {
+			Vector2f offset(DeadReckoner::horizontalX(), DeadReckoner::horizontalY());
+			float bearing = atan2(offset.x(), offset.y()) / M_PI * 180.0;
+			bearing += bearingError;
+			float distanceM = offset.norm();
+			Serial.printf("Pos offset: %f, %f\n", offset.x(), offset.y());
+
+			currentLoc = fix.location;
+			currentLoc.OffsetBy(distanceM / 1000 / NeoGPS::Location_t::EARTH_RADIUS_KM, bearing);
+
+			telem_gpsReckon(currentLoc.lat(), currentLoc.lon());
 		}
 
-        bearingToTarget = curLocation.BearingToDegrees(tarLocation);
+        //bearingToTarget = curLocation.BearingToDegrees(tarLocation);
 	}
 }
