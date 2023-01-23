@@ -42,6 +42,7 @@ namespace DeadReckoner {
 	Quaternionf calibratedAttitude = Quaternionf::Identity(); //current rotation quaternion, relative to the reference rotation
 	Vector3f rawAccel = Vector3f::Zero(); //current rawAcceleration direct from the sensor
 	Vector3f calibratedAccel = Vector3f::Zero(); //current rawAcceleration multiplied by calibrated attitude - x is forward at the time of calibration, z is up, y is right
+	Vector3f GPSVelocity = Vector3f::Zero(); // Keep track of our velocity relative to North and East ([0] and [1]), so that we can do neat positional integration stuff over in GPSNav
 	float calibratedG = 1.0; // gravity, should be very close to 1g
 
 	constexpr int samplesToCalibrate = 400; // two seconds
@@ -217,6 +218,8 @@ namespace DeadReckoner {
 		float verticalSpeed = verticalSpeedCalculator.newVal(accelms, baromVerticalSpeed);
 		altitudeCalculator.newVal(verticalSpeed, curBaromAltitude);
 
+		//Update GPS velocity integration
+		updateGPSVelocity(data.accelx * 9.80665, data.accely * 9.80665  , .004)
 
 		if (checkStability(data)) {
 			stableSamples++;
@@ -237,6 +240,15 @@ namespace DeadReckoner {
 		if (samplesGotten == GYRO_SAMPLES_TO_AVERAGE) {
 			Serial.printf("Startup gyro average: x=%f y=%f z=%f\n\n", startupGyroAvg.x(), startupGyroAvg.y(), startupGyroAvg.z());
 		}
+	}
+
+	void updateGPSVelocity(dx, dy, dt){
+		GPSVelocity[0] += dx * dt;
+		GPSVelocity[1] += dy * dt;
+	}
+
+	void resetGPSAccel(){
+		GPSVelocity = Vector3f::Zero();
 	}
 
 	void printData() {
@@ -279,4 +291,5 @@ namespace DeadReckoner {
 	float getVerticalSpeed() {return verticalSpeedCalculator.lastVal; }
 	float getAltitude() {return altitudeCalculator.lastVal; }
 	Vector3f getCalibratedAccel() {return calibratedAccel;}
+	Vector3f getGPSVelocity() {return GPSVelocity;}
 }
