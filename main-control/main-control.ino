@@ -23,10 +23,26 @@ int loopCounter = 0;
 int totalImuReads = 0;
 int ticksSinceLastImuRead = 0;
 
+
+bool autopilotEnabled = false;
+
 void loop() {
 	++loopCounter;
 
 	int startTime = micros();
+
+
+	// Check whether autopilot is enabled
+	bool newAutopilotEnabled = !digitalRead(RELAY_PIN);
+	if (newAutopilotEnabled && !autopilotEnabled) {
+		pilotStart();
+		telem_strmessage("AUTOPILOT ENABLED");
+	}
+	else if (!newAutopilotEnabled && autopilotEnabled) {
+		telem_strmessage("AUTOPILOT DISABLED");
+	}
+	autopilotEnabled = newAutopilotEnabled;
+
 
 	// readImu will return true as long as there was new data to be read.
 	int tickImuReads = 0;

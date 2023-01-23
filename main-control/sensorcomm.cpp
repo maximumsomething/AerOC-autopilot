@@ -11,6 +11,7 @@
 
 float baromAltitude;
 
+
 void setupAllComms() {
 	usbSerialSetup();
 	telemSerialSetup();
@@ -21,6 +22,9 @@ void setupAllComms() {
 	airspeedCalc::airspeedSetup();
 	// status LED
 	pinMode(13, OUTPUT);
+
+	// Pin for autopilot enabled signal
+	pinMode(RELAY_PIN, INPUT_PULLUP);
 
 	// so there isn't a big queue of imu values
 	bumpImu();

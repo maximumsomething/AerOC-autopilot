@@ -96,7 +96,7 @@ namespace GPSNav {
 			float bearing = atan2(offset.x(), offset.y()) / M_PI * 180.0;
 			bearing += bearingError;
 			float distanceM = offset.norm();
-			Serial.printf("Pos offset: %f, %f\n", offset.x(), offset.y());
+			//Serial.printf("Pos offset: %f, %f\n", offset.x(), offset.y());
 
 			currentLoc = fix.location;
 			currentLoc.OffsetBy(distanceM / 1000 / NeoGPS::Location_t::EARTH_RADIUS_KM, bearing);

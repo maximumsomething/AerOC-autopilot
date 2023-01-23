@@ -22,7 +22,7 @@ constexpr float MAX_ROLL = 30;
 constexpr float TOP_SPEED = 12; // Theoretical top airspeed used for calculating throttle
 
 constexpr bool TEST_MODE = false; //Test mode, disables throttle if true
-#define NO_PILOT_START // Defined when there is no way of knowing when the autopilot starts
+//#define NO_PILOT_START // Defined when there is no way of knowing when the autopilot starts
 
 // in theory could be set dynamically, but are constants right now
 float targetSpeed = 8;
