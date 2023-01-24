@@ -168,11 +168,15 @@ void pilotLoop() {
 	}
 	if (targetPitch < MIN_PITCH) targetPitch = MIN_PITCH;
 
+	// ignore all of the above
+	// targetPitch = 0;
+
 	// control elevators to set pitch
 	float elevatorSignal = -elevatorControl.update(targetPitch, DeadReckoner::getPitch());
 
 	// control throttle to set airspeed
 	float throttleSignal = throttleControl.update(targetSpeed, airspeed);
+	if (airspeed == 0 || isnanf(airspeed)) throttleSignal = 0.6;
 	
 	// control aileron to set roll
 	//float targetRoll = rollControl.update(targetBearing, DeadReckoner::getBearing());
@@ -207,7 +211,6 @@ void pilotLoop() {
 	//all control outputs and intermediate crap
 	aileronSignal = (aileronSignal * 90) + 90;
 	elevatorSignal = (elevatorSignal * 70) + 90;
-	if(std::isnan(throttleSignal)) throttleSignal = 110;
 	else throttleSignal *= 180;
 
 	aileronServo.write(aileronSignal);
