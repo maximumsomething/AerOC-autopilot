@@ -3,3 +3,4 @@ telemetry_ground/autogen.cpp
 main-control/telemetry_autogen.*
 __pycache__
 telem logs/
+flight-videos
