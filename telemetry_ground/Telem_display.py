@@ -79,6 +79,12 @@ def updateVals():
 		updateValsForLine("airspeed", ["speed", "pressurediff"], [curAirspeed, pressureDiff])
 		updateValsForLine("controlOut", ["targetPitch", "targetVertSpeed", "elevators", "ailerons", "throttle"], [tarPitch, tarVertSpeed, elevatorSignal, aileronSignal, throttleSignal])
 
+		try:
+			GPSLat.set(int(tp.get("gpsReckon", "lat")) * 1.0e-7)
+			GPSLon.set(int(tp.get("gpsReckon", "lng")) * 1.0e-7)
+		except ValueError as e:
+			pass
+
 		if tp.newWarning():
 			alarm = True
 			try:

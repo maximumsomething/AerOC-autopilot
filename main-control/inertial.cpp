@@ -28,10 +28,12 @@
 namespace DeadReckoner {
 
 	using Eigen::Vector3f;
+	using Eigen::Vector2f;
 	using Eigen::Quaternionf;
 
 	// 200 Hz sample rate
 	constexpr float SAMPLE_DELTA = 1.0/200.0; // seconds
+	constexpr float MS2_PER_G = 9.80665;
 
 	float roll = 0; //0 is level, positive is clockwise roll, negative is anticlockwise roll
 	float pitch = 0; //0 is level, positive is upwards, negative is downwards
@@ -42,7 +44,9 @@ namespace DeadReckoner {
 	Quaternionf calibratedAttitude = Quaternionf::Identity(); //current rotation quaternion, relative to the reference rotation
 	Vector3f rawAccel = Vector3f::Zero(); //current rawAcceleration direct from the sensor
 	Vector3f calibratedAccel = Vector3f::Zero(); //current rawAcceleration multiplied by calibrated attitude - x is forward at the time of calibration, z is up, y is right
-	Vector3f GPSVelocity = Vector3f::Zero(); // Keep track of our velocity relative to North and East ([0] and [1]), so that we can do neat positional integration stuff over in GPSNav
+	 // For integrating horizontal velocity and position over the short periods of time between GPS readings
+	Vector2f horizontalVel = Vector2f::Zero();
+	Vector2f horizontalPos = Vector2f::Zero();
 	float calibratedG = 1.0; // gravity, should be very close to 1g
 
 	constexpr int samplesToCalibrate = 400; // two seconds
@@ -212,14 +216,16 @@ namespace DeadReckoner {
 		prevBaromAltitude = curBaromAltitude;
 
 		// Subtract gravity, convert to m/s^2
-		float accelms = (calibratedAccel[2] - calibratedG) * 9.80665;
+		float accelms = (calibratedAccel[2] - calibratedG) * MS2_PER_G;
 
-		// integrate and correct for drift
+		// integrate vertical speed and altitude and correct for drift
 		float verticalSpeed = verticalSpeedCalculator.newVal(accelms, baromVerticalSpeed);
 		altitudeCalculator.newVal(verticalSpeed, curBaromAltitude);
 
-		//Update GPS velocity integration
-		updateGPSVelocity(data.accelx * 9.80665, data.accely * 9.80665  , .004)
+		// Integrate horizontal velocity and position
+		horizontalVel += Vector2f(calibratedAccel.x(), calibratedAccel.y()) * MS2_PER_G * SAMPLE_DELTA;
+		horizontalPos += horizontalVel * SAMPLE_DELTA;
+
 
 		if (checkStability(data)) {
 			stableSamples++;
@@ -242,13 +248,9 @@ namespace DeadReckoner {
 		}
 	}
 
-	void updateGPSVelocity(dx, dy, dt){
-		GPSVelocity[0] += dx * dt;
-		GPSVelocity[1] += dy * dt;
-	}
-
-	void resetGPSAccel(){
-		GPSVelocity = Vector3f::Zero();
+	void resetPositionReckoning(float newXVel, float newYVel) {
+		horizontalPos = Vector2f::Zero();
+		horizontalVel = Vector2f(newXVel, newYVel);
 	}
 
 	void printData() {
@@ -290,6 +292,6 @@ namespace DeadReckoner {
 	float getBearing() {return bearing;}
 	float getVerticalSpeed() {return verticalSpeedCalculator.lastVal; }
 	float getAltitude() {return altitudeCalculator.lastVal; }
-	Vector3f getCalibratedAccel() {return calibratedAccel;}
-	Vector3f getGPSVelocity() {return GPSVelocity;}
+	float horizontalX()  { return horizontalPos.x(); }
+	float horizontalY() { return horizontalPos.y(); }
 }

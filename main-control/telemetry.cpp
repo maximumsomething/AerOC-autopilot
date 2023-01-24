@@ -24,7 +24,7 @@ void sdfatDateTime(uint16_t* date, uint16_t* time) {
 
 SdFat32 sd;
 File32 sdFile;
-FilePrintStream logFileStream(&sdFile);
+//FilePrintStream logFileStream(&sdFile);
 #define TELEM_SAVE_DIR "aeroc_pilot_telem"
 
 bool setupSdCardTelem() {
