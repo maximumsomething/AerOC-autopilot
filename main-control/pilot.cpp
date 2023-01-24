@@ -93,7 +93,7 @@ class kpid {
 
 //Servo control instances
 // Positive rudder values move the rudder right, turning the plane right
-// Positive elevator values push the elevator up, turning the plane up
+  
 // Positive aileron values roll the left wing down (roll it CCW).
 
 PWMServo aileronServo; //Handlers for control axes should always be declared in the order they are arranged on the receiver - Ailerons/Roll, Elevator/Pitch, Throttle/Speed, Rudder/Yaw
@@ -183,7 +183,7 @@ void pilotLoop() {
 	targetRoll = fmax(targetRoll, -MAX_ROLL);
 	targetRoll = fmin(targetRoll, MAX_ROLL);
 
-	float aileronSignal = -aileronControl.update(targetRoll, DeadReckoner::getRoll());
+	float aileronSignal = aileronControl.update(targetRoll, DeadReckoner::getRoll());
 
 	//float rudderSignal = rudderControl.update(targetBearing, DeadReckoner::getBearing());
 	//Constants determined by vibes
@@ -195,12 +195,10 @@ void pilotLoop() {
 	// aircraft specific rudder settings
 	rudderSignal *= 0.6;
 
-
 	//if (millis() - pilotLastPrintTime >= 200) {
 		telem_controlOut(targetVertSpeed, targetPitch, throttleSignal, elevatorSignal, aileronSignal);
 		//pilotLastPrintTime = millis();
 	//}
-
 
 	//all control outputs and intermediate crap
 	aileronSignal = (aileronSignal * 90) + 90;
