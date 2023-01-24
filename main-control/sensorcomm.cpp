@@ -7,6 +7,7 @@
 #include <SparkFunMPU9250-DMP.h>
 #include <cstdint>
 #include <i2c_driver.h>
+#include <i2c_device.h>
 #include <imx_rt1060/imx_rt1060_i2c_driver.h>
 
 float baromAltitude;
@@ -57,8 +58,12 @@ void i2cSetup() {
 	// start the second I2C bus (BMP390), Wire1, on pins 16 and 17
 	//pinMode(16, INPUT_PULLUP);
 	//pinMode(17, INPUT_PULLUP);
-	Wire1.begin();
-	Wire1.setClock(1000000);
+	//Wire1.begin();
+	//Wire1.setClock(1000000);
+	//Wire1.setWireTimeout(2000, false); // This should be quick so barometer resets don't hang stuff
+
+	Master1.begin(1000000);
+
 
 	//pinMode(24, INPUT_PULLUP);
 	//pinMode(25, INPUT_PULLUP);
@@ -215,9 +220,62 @@ struct bmp3_settings bmpsettings = { 0 };
 
 namespace BmpFuncs {
 
-	TwoWire* i2c_dev;
-	uint8_t i2c_address;
 
+	uint8_t BMP_I2C_ADDRESS = 0x77;
+	//TwoWire* i2c_dev;
+	I2CMaster* i2c_dev = &Master1;
+	constexpr ulong i2c_timeout_us = 2000;
+
+	int bytesLastInCall = 0;
+	bool i2c_wait(int bytesLastInCall) {
+		unsigned timeout = i2c_timeout_us + bytesLastInCall * 80;
+		ulong startTime = micros();
+		while (!i2c_dev->finished()) {
+			if (micros() - startTime > timeout) return false;
+		}
+		return true;
+	}
+
+	int8_t i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t len,
+                void *intf_ptr) {
+		//Serial.print("I2C read address 0x"); Serial.print(reg_addr, HEX);
+		//Serial.print(" len "); Serial.println(len, HEX);
+
+		//if (!i2c_dev->write_then_read(&reg_addr, 1, reg_data, len))
+		//	return 1;
+
+		i2c_dev->write_async(BMP_I2C_ADDRESS, &reg_addr, 1, false);
+		i2c_wait(1);
+		if (i2c_dev->get_bytes_transferred() != 1) return BMP3_E_COMM_FAIL;
+
+		//Serial.printf("writed, result=%i\n", result);
+
+		i2c_dev->read_async(BMP_I2C_ADDRESS, reg_data, len, true);
+		i2c_wait(len);
+		if (i2c_dev->get_bytes_transferred() != len) return BMP3_E_COMM_FAIL;
+		//Serial.println("requested");
+
+		return BMP3_OK;
+	}
+
+	int8_t i2c_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t len,
+			void *intf_ptr) {
+		// Serial.print("I2C write address 0x"); Serial.print(reg_addr, HEX);
+		// Serial.print(" len "); Serial.println(len, HEX);
+
+		//if (!i2c_dev->write((uint8_t *)reg_data, len, true, &reg_addr, 1))
+		//	return 1;
+		i2c_dev->write_async(BMP_I2C_ADDRESS, &reg_addr, 1, false);
+		i2c_wait(1);
+		if (i2c_dev->get_bytes_transferred() != 1) return BMP3_E_COMM_FAIL;
+		i2c_dev->write_async(BMP_I2C_ADDRESS, const_cast<uint8_t*>(reg_data), len, true);
+		i2c_wait(len);
+		if (i2c_dev->get_bytes_transferred() != len) return BMP3_E_COMM_FAIL;
+
+		return BMP3_OK;
+	}
+
+	/*
 	int8_t i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t len,
                 void *intf_ptr) {
 		//Serial.print("I2C read address 0x"); Serial.print(reg_addr, HEX);
@@ -260,7 +318,7 @@ namespace BmpFuncs {
 		if (result != 0) return BMP3_E_COMM_FAIL;
 
 		return BMP3_OK;
-	}
+	}*/
 
 	void delay_usec(uint32_t us, void *intf_ptr) { delayMicroseconds(us); }
 }
@@ -310,8 +368,6 @@ BMP3_INTF_RET_TYPE bmp3_interface_init(struct bmp3_dev *bmp3, uint8_t intf) {
         /* Bus configuration : I2C */
         if (intf == BMP3_I2C_INTF) {
             Serial.printf("I2C Interface\n");
-            //BmpFuncs::i2c_address = BMP3_ADDR_I2C_PRIM;
-			BmpFuncs::i2c_address = 0x77;
             bmp3->read = &BmpFuncs::i2c_read;
             bmp3->write = &BmpFuncs::i2c_write;
             bmp3->intf = BMP3_I2C_INTF;
@@ -324,7 +380,7 @@ BMP3_INTF_RET_TYPE bmp3_interface_init(struct bmp3_dev *bmp3, uint8_t intf) {
         // else SPI; we not doing SPI here
 
         bmp3->delay_us = &BmpFuncs::delay_usec;
-        bmp3->intf_ptr = &BmpFuncs::i2c_address;
+        bmp3->intf_ptr = &BmpFuncs::BMP_I2C_ADDRESS;
     }
     else {
         rslt = BMP3_E_NULL_PTR;
@@ -334,19 +390,22 @@ BMP3_INTF_RET_TYPE bmp3_interface_init(struct bmp3_dev *bmp3, uint8_t intf) {
 }
 
 void altimeterSetup() {
+	ulong startTime = micros();
 	Serial.println("Initializing BMP3XX...");
 
     /* Interface reference is given as a parameter
      *         For I2C : BMP3_I2C_INTF
      *         For SPI : BMP3_SPI_INTF
      */
-	BmpFuncs::i2c_dev = &Wire1;
 
     int8_t rslt = bmp3_interface_init(&bmpdev, BMP3_I2C_INTF);
     bmp3_check_rslt("bmp3_interface_init", rslt);
 
+	ulong ifaceInitDone = micros();
+
     rslt = bmp3_init(&bmpdev);
     bmp3_check_rslt("bmp3_init", rslt);
+	ulong initDone = micros();
 
 	Serial.println("init device");
 
@@ -364,12 +423,14 @@ void altimeterSetup() {
 
     rslt = bmp3_set_sensor_settings(settings_sel, &bmpsettings, &bmpdev);
     bmp3_check_rslt("bmp3_set_sensor_settings", rslt);
+	ulong settingsDone = micros();
 
     bmpsettings.op_mode = BMP3_MODE_NORMAL;
     rslt = bmp3_set_op_mode(&bmpsettings, &bmpdev);
     bmp3_check_rslt("bmp3_set_op_mode", rslt);
+	ulong modeSet = micros();
 
-	Serial.println("Barometer set up");
+	Serial.printf("Barometer setup timing: iface %d, init %d, settings %d, op_mode %d\n", ifaceInitDone - startTime, initDone - ifaceInitDone, settingsDone - initDone, modeSet - settingsDone);
 }
 
 int altimeterResets = 0;
@@ -377,7 +438,7 @@ int altimeterBadTicks = 0;
 
 void readAltimeter() {
 	if (altimeterResets == 3) {
-		//telem_strmessage("ERROR: bad altimeter\n\n\n");
+		telem_strmessage("ERROR: bad altimeter\n\n\n");
 	}
 
     struct bmp3_status status = { { 0 } };
@@ -412,7 +473,7 @@ void readAltimeter() {
 		else {
 			float atmospheric = data.pressure / 100.0F;
 			baromAltitude = 44330.0 * (1.0 - pow(atmospheric / 1013.25, 0.1903));
-			altimeterResets = 0;
+			//altimeterResets = 0;
 			altimeterBadTicks = 0;
 		}
 
