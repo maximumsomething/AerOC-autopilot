@@ -77,7 +77,7 @@ def updateVals():
 		updateValsForLine("pose", ["pitch", "roll", "bearing", "verticalSpeed", "altitude"], [curPitch, curRoll, curBearing, curVertSpeed, curAltitude])
 		updateValsForLine("calInertial", ["ax", "ay", "az", "anorm"], [forAcc, leftAcc, downAcc, totalAcc])
 		updateValsForLine("airspeed", ["speed", "pressurediff"], [curAirspeed, pressureDiff])
-		updateValsForLine("controlOut", ["targetPitch", "targetVertSpeed", "elevators", "ailerons", "throttle"], [tarPitch, tarVertSpeed, elevatorSignal, aileronSignal, throttleSignal])
+		updateValsForLine("controlOut", ["targetPitch", "targetVertSpeed", "targetRoll", "elevators", "ailerons", "throttle", "rudder"], [tarPitch, tarVertSpeed, tarRoll, elevatorSignal, aileronSignal, throttleSignal, rudderSignal])
 
 		try:
 			GPSLat.set(int(tp.get("gpsReckon", "lat")) * 1.0e-7)

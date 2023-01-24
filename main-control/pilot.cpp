@@ -196,7 +196,7 @@ void pilotLoop() {
 	rudderSignal *= 0.6;
 
 	//if (millis() - pilotLastPrintTime >= 200) {
-		telem_controlOut(targetVertSpeed, targetPitch, throttleSignal, elevatorSignal, aileronSignal);
+		telem_controlOut(targetVertSpeed, targetPitch, targetRoll, throttleSignal, elevatorSignal, aileronSignal, rudderSignal);
 		//pilotLastPrintTime = millis();
 	//}
 
