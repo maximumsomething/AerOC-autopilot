@@ -179,7 +179,7 @@ void pilotLoop() {
 
 	// don't use kpid class, because we don't need i and d terms and we have a difference not a target and input
 	// the correct kP is on the order of magnitude of 1, so why not just have it be 1?
-	float targetRoll = 1 * bearingDiff;
+	float targetRoll = -1 * bearingDiff;
 	targetRoll = fmax(targetRoll, -MAX_ROLL);
 	targetRoll = fmin(targetRoll, MAX_ROLL);
 
