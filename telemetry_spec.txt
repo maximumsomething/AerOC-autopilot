@@ -7,6 +7,8 @@ pressureTemp390 float pressurehPa, float tempC, float altitudeM
 airspeed float speed, float pressurediff
 calInertial float ax, float ay, float az, float anorm
 controlOut float targetVertSpeed, float targetPitch, float throttle, float elevators, float ailerons
+warningLoopRanOverByMicroseconds int32_t us
+warningImuStalledByTicks uint8_t ticks
 gpsFix int32_t lat, int32_t lng
 gpsReckon int32_t lat, int32_t lng
 

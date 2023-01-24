@@ -66,6 +66,7 @@ void loop() {
 			telem_strmessage("ERROR: reset IMU\n\n\n");
 			DeadReckoner::resetCalibration();
 			imuSetup();
+			ticksSinceLastImuRead = 0;
 		}
 		else if (ticksSinceLastImuRead >= 6) {
 			bumpImu();
@@ -73,7 +74,12 @@ void loop() {
 			totalImuReads = 0;
 		}
 	}
-	else ticksSinceLastImuRead = 0;
+	else {
+		if (ticksSinceLastImuRead != 0) {
+			telem_warningImuStalledByTicks(ticksSinceLastImuRead);
+		}
+		ticksSinceLastImuRead = 0;
+	}
 	// Do this at 25 Hz
 	if (loopCounter % 2 == 1) {
 		readAltimeter();
@@ -108,7 +114,8 @@ void loop() {
 	// make loop
 	int delayTime = loopInterval - (endTime - startTime);
 	if (delayTime < 0) {
-		Serial.print("Warning: loop ran over by "); Serial.print(-delayTime); Serial.println(" microseconds");
+		//Serial.print("Warning: loop ran over by "); Serial.print(-delayTime); Serial.println(" microseconds");
+		telem_warningLoopRanOverByMicroseconds(-delayTime);
 	}
 	else {
 		delayMicroseconds(delayTime);

@@ -27,7 +27,7 @@ constexpr bool TEST_MODE = false; //Test mode, disables throttle if true
 // in theory could be set dynamically, but are constants right now
 float targetSpeed = 8;
 // set when autopilot is enabled. Unused if NO_PILOT_START.
-float targetAltitude;
+float targetAltitude = 0;
 // set when the autopilot is enabled.
 float targetBearing = 180;
 
@@ -120,7 +120,7 @@ void pilotStart() {
 float calcTargetVertSpeed() {
 	constexpr float ELEVATION_DEADZONE = 2;
 	constexpr float ELEVATION_MAX_DIFF = 5;
-	float err = targetAltitude - DeadReckoner::getAltitude();
+	float err = DeadReckoner::getAltitude() - targetAltitude;
 	if (fabs(err) < ELEVATION_DEADZONE) return 0;
 	else {
 		float amount = (fabs(err) - ELEVATION_DEADZONE) / (ELEVATION_MAX_DIFF - ELEVATION_DEADZONE);
