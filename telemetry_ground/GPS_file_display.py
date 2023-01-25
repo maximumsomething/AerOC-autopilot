@@ -7,6 +7,6 @@ print("Type, Latitude, Longitude")
 
 while(tp.read_line()):
     try:
-        print("T,"+tp.get("gpsReckon", "lat")+","+tp.get("gpsReckon", "lng"))
+        print("T,"+tp.get("gpsReckon", "lat")*1.0e-7+","+tp.get("gpsReckon", "lng")*1.0e-7)
     except ValueError as e:
         pass
