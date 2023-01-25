@@ -52,10 +52,6 @@ namespace GPSNav {
 		return Teensy3Clock.get();
 	}
 
-	void gpsSetup() {
-		gpsPort.begin(9600);
-		setWaypoints([[41.300093, -82.224700],[41.298565, -82.224848]])
-	}
 	//North end of athletics field: 41.300093, -82.224700. South end of athletics field: 41.298565, -82.224848
 	void setWaypoints(float routePoints[][2], int numWaypoints){
 		waypoints = ring_buffer<NeoGPS::Location_t>(numWaypoints);
@@ -63,6 +59,12 @@ namespace GPSNav {
 			waypoints.put(NeoGPS::Location_t(routePoints[i][0], routePoints[i][1]));
 		}
 		targetLoc = waypoints.get(0);
+	}
+	
+	void gpsSetup() {
+		gpsPort.begin(9600);
+		float waypointArray[2][2] = {{41.300093, -82.224700},{41.298565, -82.224848}};
+		setWaypoints(waypointArray, 2);
 	}
 
 	// Update the RTC using the current GPS fix time
