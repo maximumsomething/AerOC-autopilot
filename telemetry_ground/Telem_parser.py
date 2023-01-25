@@ -51,7 +51,7 @@ def read_line():
 					parsedLine.values[keyval[0]] = keyval[1]
 			values[label] = parsedLine
 
-	return True
+	return label
 
 
 def newWarning():
