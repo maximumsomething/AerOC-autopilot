@@ -6,6 +6,7 @@ import Telem_parser as tp
 
 print("Type, Latitude, Longitude")
 
+label = ""
 while(label = tp.readline):
     try:
         if(label == "GPSFix" or label == "GPSReckon"):
