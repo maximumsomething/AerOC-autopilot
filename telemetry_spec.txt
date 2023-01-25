@@ -6,7 +6,7 @@ pose float pitch, float roll, float bearing, float verticalSpeed, float altitude
 pressureTemp float pressurehPa, float tempC, float altitudeM
 airspeed float speed, float pressurediff
 calInertial float ax, float ay, float az, float anorm
-controlOut float targetVertSpeed, float targetPitch, float targetRoll, float throttle, float elevators, float ailerons, float rudder
+controlOut float targetVertSpeed, float targetPitch, float targetRoll, float targetBearing, float throttle, float elevators, float ailerons, float rudder
 warningLoopRanOverByMicroseconds int32_t us
 warningImuStalledByTicks uint8_t ticks
 gpsFix int32_t lat, int32_t lng, float altitude
