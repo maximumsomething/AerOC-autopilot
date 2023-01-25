@@ -21,7 +21,7 @@ def read_line():
 	line = inFile.readline()
 	if not line:
 		print("Read error")
-		return False
+		return ""
 	line = line.strip()
 	if (line):
 		parsedLine = telemLine()
@@ -51,7 +51,8 @@ def read_line():
 					parsedLine.values[keyval[0]] = keyval[1]
 			values[label] = parsedLine
 
-	return label
+		return label
+	return "wow such empty"
 
 
 def newWarning():

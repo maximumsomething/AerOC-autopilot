@@ -6,10 +6,11 @@ import Telem_parser as tp
 
 print("Type, Latitude, Longitude")
 
+desiredLabel = "gpsFix"
 label = ""
-while(label = tp.readline):
+while(label := tp.read_line()):
     try:
-        if(label == "GPSFix" or label == "GPSReckon"):
-            print("T,"+str(int(tp.get("gpsReckon", "lat"))*1.0e-7)+","+str(int(tp.get("gpsReckon", "lng"))*1.0e-7))
+        if(label == desiredLabel):
+            print("T,"+str(int(tp.get(desiredLabel, "lat"))*1.0e-7)+","+str(int(tp.get(desiredLabel, "lng"))*1.0e-7))
     except ValueError as e:
         pass
