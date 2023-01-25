@@ -144,7 +144,7 @@ kpid pitchControl(MIN_PITCH, MAX_PITCH, 0, MAX_PITCH / MAX_CLIMB_RATE * 0.5, 0, 
 // ends up being: 1 / ((1/2) * seconds * desiredTerm * (1/kp))
 kpid elevatorControl(-1, 1, 0, 1.0/30.0, 1.0 / ((30.0 * (1.0/3.0)) * 2.0 * (1.0 / 2.0)), 0, 0.3);
 // just kinda guessing at good constants here
-kpid throttleControl(0, 1, 1 / TOP_SPEED, 0.7 / TOP_SPEED, 0, 0);
+kpid throttleControl(0, 1, 1 / TOP_SPEED, -0.7 / TOP_SPEED, 0, 0);
 //Constants determined by vibes
 
 void pilotLoop() {
@@ -211,7 +211,7 @@ void pilotLoop() {
 	//all control outputs and intermediate crap
 	aileronSignal = (aileronSignal * 90) + 90;
 	elevatorSignal = (elevatorSignal * 70) + 90;
-	else throttleSignal *= 180;
+	throttleSignal *= 180;
 
 	aileronServo.write(aileronSignal);
 	elevatorServo.write(elevatorSignal);
