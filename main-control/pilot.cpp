@@ -144,7 +144,7 @@ kpid pitchControl(MIN_PITCH, MAX_PITCH, 0, MAX_PITCH / MAX_CLIMB_RATE * 0.5, 0, 
 // ends up being: 1 / ((1/2) * seconds * desiredTerm * (1/kp))
 kpid elevatorControl(-1, 1, 0, 1.0/30.0, 1.0 / ((30.0 * (1.0/3.0)) * 2.0 * (1.0 / 2.0)), 0, 0.3);
 // just kinda guessing at good constants here
-kpid throttleControl(0, 1, 1 / TOP_SPEED, 0.7 / TOP_SPEED, 0, 0);
+kpid throttleControl(0, 1, 1 / TOP_SPEED, -0.7 / TOP_SPEED, 0, 0);
 //Constants determined by vibes
 
 void setTargetBearing(float target){
@@ -172,11 +172,15 @@ void pilotLoop() {
 	}
 	if (targetPitch < MIN_PITCH) targetPitch = MIN_PITCH;
 
+	// ignore all of the above
+	// targetPitch = 0;
+
 	// control elevators to set pitch
 	float elevatorSignal = -elevatorControl.update(targetPitch, DeadReckoner::getPitch());
 
 	// control throttle to set airspeed
 	float throttleSignal = throttleControl.update(targetSpeed, airspeed);
+	if (airspeed == 0 || isnanf(airspeed)) throttleSignal = 0.6;
 	
 	// control aileron to set roll
 	//float targetRoll = rollControl.update(targetBearing, DeadReckoner::getBearing());
@@ -211,8 +215,7 @@ void pilotLoop() {
 	//all control outputs and intermediate crap
 	aileronSignal = (aileronSignal * 90) + 90;
 	elevatorSignal = (elevatorSignal * 70) + 90;
-	if(std::isnan(throttleSignal)) throttleSignal = 110;
-	else throttleSignal *= 180;
+	throttleSignal *= 180;
 
 	aileronServo.write(aileronSignal);
 	elevatorServo.write(elevatorSignal);
