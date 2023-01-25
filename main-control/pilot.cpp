@@ -147,6 +147,11 @@ kpid elevatorControl(-1, 1, 0, 1.0/30.0, 1.0 / ((30.0 * (1.0/3.0)) * 2.0 * (1.0 
 kpid throttleControl(0, 1, 1 / TOP_SPEED, 0.7 / TOP_SPEED, 0, 0);
 //Constants determined by vibes
 
+void setTargetBearing(float target){
+	targetBearing = target;
+}
+
+
 void pilotLoop() {
 #ifdef NO_PILOT_START
 	constexpr float targetVertSpeed = 0;
@@ -155,7 +160,6 @@ void pilotLoop() {
 #endif
 
 	//Get bearing to target GPS location from GPSNav
-	targetBearing = GPSNav::getBearingToTarget();
 
 	// calculate desired pitch from target vertical speed and current airspeed
 	// if (current airspeed - safe airspeed) < val then calculate something from (current airspeed - safe airspeed)
