@@ -39,17 +39,24 @@ namespace GPSNav {
 	NeoGPS::Location_t currentLoc;
 	NeoGPS::Location_t targetLoc;
 
-	float trueBearing; //calibrated bearing from inertial + time-averaged error relative to true north/gps heading. TODO - implement code that maintains this number.
-	float bearingError; //a number by which we rotate our reference rotation about the unit z axis by to make it point towards true north.
+	ring_buffer<NeoGPS::Location_t> waypoints;
+	
+	float bearingError; //a number by which we rotate our reference rotation about the unit z axis to make it point towards true north. Time-averaged difference between gps heading and inertial heading
 	float bearingToTarget; //calculated bearing to our target location
 
+	float bearingSmoothing = .5; //the smoothing coefficient for true bearing averaging
+
 	time_t getTeensy3Time() {
-		Serial.println("getTeensy3Time");
+		//Serial.println("getTeensy3Time");
 		return Teensy3Clock.get();
 	}
 
 	void gpsSetup() {
 		gpsPort.begin(9600);
+	}
+
+	void setWaypoints(float[][] waypoints, int numWaypoints){
+
 	}
 
 	// Update the RTC using the current GPS fix time
@@ -76,12 +83,10 @@ namespace GPSNav {
 			if (fix.valid.location) {
 
 				currentLoc = fix.location;
-
-				bearingToTarget = fix.location.BearingToDegrees(targetLoc);
-
+	
 				// Todo: there's some fuckery that needs to be done with GPS vs. inertial bearings
 				// For now, just update it every fix
-				bearingError = fix.heading() - DeadReckoner::getBearing();
+				bearingError = bearingSmoothing*(fix.heading() - DeadReckoner::getBearing()) + (1-bearingSmoothing)*bearingError;
 				float speed_mps = fix.speed_metersph() / 3600.0;
 				float heading_rad = (fix.heading() - bearingError) / 180.0 * M_PI;
 
@@ -89,9 +94,7 @@ namespace GPSNav {
 
 				telem_gpsFix(currentLoc.lat(), currentLoc.lon());
 			}
-
-
-        } else {
+		} else {
 			Vector2f offset(DeadReckoner::horizontalX(), DeadReckoner::horizontalY());
 			float bearing = atan2(offset.x(), offset.y()) / M_PI * 180.0;
 			bearing += bearingError;
@@ -104,6 +107,15 @@ namespace GPSNav {
 			telem_gpsReckon(currentLoc.lat(), currentLoc.lon());
 		}
 
-        //bearingToTarget = curLocation.BearingToDegrees(tarLocation);
+		//If we're close enough to our target, move on to the next one in the buffer;
+
+        BearingToTarget = curLocation.BearingToDegrees(tarLocation);
+	}
+
+	float getTrueBearing(){
+		return bearing + bearingError;
+	}
+	float getBearingToTarget(){
+		return bearingToTarget;
 	}
 }
