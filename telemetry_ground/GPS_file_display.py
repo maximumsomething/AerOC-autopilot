@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 #This file reads in our telemetry from stdin and prints a trackfile described here (https://www.gpsvisualizer.com/tutorials/tracks.html) to stdout
 
 import sys
