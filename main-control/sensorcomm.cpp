@@ -62,7 +62,7 @@ void i2cSetup() {
 	//Wire1.setClock(1000000);
 	//Wire1.setWireTimeout(2000, false); // This should be quick so barometer resets don't hang stuff
 
-	Master1.begin(1000000);
+	Master1.begin(100000);
 
 
 	//pinMode(24, INPUT_PULLUP);
@@ -447,7 +447,7 @@ void gotPressure(float pascals, float temperature) {
 }
 
 void readBmp390() {
-	if (altimeterResets == 3) {
+	if (altimeterResets == 3 && altimeterBadTicks == 0) {
 		telem_strmessage("ERROR: bad altimeter\n\n\n");
 	}
 

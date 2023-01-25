@@ -124,7 +124,7 @@ namespace GPSNav {
         bearingToTarget = currentLoc.BearingToDegrees(targetLoc);
 
 		if(enableGPSNav){
-			//setTargetBearing(bearingToTarget - bearingError);
+			setTargetBearing(bearingToTarget - bearingError);
 		}
 	}
 	float getBearingError(){

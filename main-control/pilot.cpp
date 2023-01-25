@@ -114,6 +114,7 @@ void pilotStart() {
 	//targetBearing = DeadReckoner::getBearing();
 }
 
+
 // calculate target vertical speed from target elevation
 // piecewise linear function:
 // if within 2 meters of the desired elevation, 0
@@ -173,7 +174,7 @@ void pilotLoop() {
 	if (targetPitch < MIN_PITCH) targetPitch = MIN_PITCH;
 
 	// ignore all of the above
-	// targetPitch = 0;
+	targetPitch = 5;
 
 	// control elevators to set pitch
 	float elevatorSignal = -elevatorControl.update(targetPitch, DeadReckoner::getPitch());
