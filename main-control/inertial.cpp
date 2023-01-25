@@ -3,6 +3,7 @@
 #include "telemetry.h"
 #include "telemetry_autogen.h"
 #include "ringbuffer.h"
+#include "gpsnav.h"
 #include <cmath>
 #include <eigen.h>
 #include <Eigen/Geometry>
@@ -211,7 +212,8 @@ namespace DeadReckoner {
 		updateAverages(rawAccel);
 
 		// calculate vertical speed & altitude with barometer & accelerometer
-		float curBaromAltitude = getBaromAltitude();
+		//float curBaromAltitude = getBaromAltitude();
+		float curBaromAltitude = GPSNav::getAltitude();
 		float baromVerticalSpeed = (curBaromAltitude - prevBaromAltitude) / SAMPLE_DELTA;
 		prevBaromAltitude = curBaromAltitude;
 
@@ -267,7 +269,8 @@ namespace DeadReckoner {
 
 			// reset vertical drift
 			verticalSpeedCalculator.lastVal = 0;
-			altitudeCalculator.lastVal = getBaromAltitude();
+			//altitudeCalculator.lastVal = getBaromAltitude();
+			altitudeCalculator.lastVal = GPSNav::getAltitude();
 
 		// //}
 		if (!downCalibrated) {

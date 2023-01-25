@@ -100,7 +100,7 @@ namespace GPSNav {
 
 				DeadReckoner::resetPositionReckoning(cos(heading_rad) * speed_mps, -sin(heading_rad) * speed_mps);
 
-				telem_gpsFix(currentLoc.lat(), currentLoc.lon());
+				telem_gpsFix(currentLoc.lat(), currentLoc.lon(), fix.altitude());
 			}
 		} else {
 			Vector2f offset(DeadReckoner::horizontalX(), DeadReckoner::horizontalY());
@@ -129,6 +129,10 @@ namespace GPSNav {
 	}
 	float getBearingError(){
 		return bearingError;
+	}
+
+	float getAltitude() {
+		return fix.altitude();
 	}
 
 	float getBearingToTarget(){

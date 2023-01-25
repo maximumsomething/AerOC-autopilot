@@ -62,7 +62,7 @@ void i2cSetup() {
 	//Wire1.setClock(1000000);
 	//Wire1.setWireTimeout(2000, false); // This should be quick so barometer resets don't hang stuff
 
-	Master1.begin(1000000);
+	Master1.begin(100000);
 
 
 	//pinMode(24, INPUT_PULLUP);
@@ -82,8 +82,8 @@ void i2cScan() {
 		// The i2c_scanner uses the return value of
 		// the Write.endTransmisstion to see if
 		// a device did acknowledge to the address.
-		Wire2.beginTransmission(address);
-		error = Wire2.endTransmission();
+		Wire.beginTransmission(address);
+		error = Wire.endTransmission();
 
 		if (error == 0) {
 			Serial.print("I2C device found at address 0x");
@@ -214,6 +214,8 @@ void printGyroBiases() {
 
 #include <bmp3_defs.h>
 #include <bmp3.h>
+#include <bmp2_defs.h>
+#include <bmp2.h>
 
 struct bmp3_dev bmpdev;
 struct bmp3_settings bmpsettings = { 0 };
@@ -292,20 +294,20 @@ namespace BmpFuncs {
 
 		i2c_dev->beginTransmission(BMP_I2C_ADDRESS);
 		unsigned result = i2c_dev->write(&reg_addr, 1);
-		if (result != 1) return BMP3_E_COMM_FAIL;
+		if (result != 1) return BMP2_E_COM_FAIL;
 		result = i2c_dev->endTransmission(false);
 		//Serial.printf("writed, result=%i\n", result);
-		if (result != 0) return BMP3_E_COMM_FAIL;
+		if (result != 0) return BMP2_E_COM_FAIL;
 
 		result = i2c_dev->requestFrom(BMP_I2C_ADDRESS, len, true);
-		if (result != len) return BMP3_E_COMM_FAIL;
+		if (result != len) return BMP2_E_COM_FAIL;
 		//Serial.println("requested");
 
 		for (unsigned i = 0; i < len; ++i) {
 			reg_data[i] = i2c_dev->read();
 		}
 
-		return BMP3_OK;
+		return BMP2_OK;
 	}
 
 	int8_t i2c_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t len,
@@ -317,13 +319,13 @@ namespace BmpFuncs {
 		//	return 1;
 		i2c_dev->beginTransmission(BMP_I2C_ADDRESS);
 		unsigned result = i2c_dev->write(&reg_addr, 1);
-		if (result != 1) return BMP3_E_COMM_FAIL;
+		if (result != 1) return BMP2_E_COM_FAIL;
 		result = i2c_dev->write(reg_data, len);
-		if (result != len) return BMP3_E_COMM_FAIL;
+		if (result != len) return BMP2_E_COM_FAIL;
 		result = i2c_dev->endTransmission();
-		if (result != 0) return BMP3_E_COMM_FAIL;
+		if (result != 0) return BMP2_E_COM_FAIL;
 
-		return BMP3_OK;
+		return BMP2_OK;
 	}
 
 	void delay_usec(uint32_t us, void *intf_ptr) { delayMicroseconds(us); }
@@ -445,7 +447,7 @@ void gotPressure(float pascals, float temperature) {
 }
 
 void readBmp390() {
-	if (altimeterResets == 3) {
+	if (altimeterResets == 3 && altimeterBadTicks == 0) {
 		telem_strmessage("ERROR: bad altimeter\n\n\n");
 	}
 
@@ -512,8 +514,6 @@ void readBmp390() {
 	}
 }
 
-#include <bmp2.h>
-
 // Adapted from BMP2-sensor-API example code
 /*!
  *  @brief Prints the execution status of the APIs.
@@ -522,7 +522,7 @@ void bmp2_error_codes_print_result(const char api_name[], int8_t rslt)
 {
     if (rslt != BMP2_OK)
     {
-        printf("%s\t", api_name);
+        Serial.printf("%s\t", api_name);
 
         switch (rslt)
         {
@@ -605,12 +605,13 @@ void bmp280Setup() {
     bmp2_error_codes_print_result("bmp2_get_config", rslt);
 
     /* Configuring the over-sampling mode, filter coefficient and output data rate */
-    conf.filter = BMP2_FILTER_COEFF_4;
+    conf.filter = BMP2_FILTER_OFF;
 
     conf.os_mode = BMP2_OS_MODE_ULTRA_HIGH_RESOLUTION;
 
     /* Setting the output data rate */
-    conf.odr = BMP2_ODR_0_5_MS;
+    //conf.odr = BMP2_ODR_0_5_MS;
+    conf.odr = BMP2_ODR_250_MS;
 
     rslt = bmp2_set_config(&conf, &bmp2);
     bmp2_error_codes_print_result("bmp2_set_config", rslt);
@@ -626,6 +627,10 @@ void bmp280Setup() {
 	Serial.printf("BMP2 measurement time: %d us\n", meas_time);
 }
 
+extern "C" {
+	int8_t parse_sensor_data(const uint8_t *reg_data, struct bmp2_uncomp_data *uncomp_data);
+}
+
 void readBmp280() {
 	int8_t rslt = BMP2_E_NULL_PTR;
     struct bmp2_status status;
@@ -635,6 +640,15 @@ void readBmp280() {
 	bmp2_error_codes_print_result("bmp2_get_status", rslt);
 
 	if (status.measuring == BMP2_MEAS_DONE) {
+
+		// Inspect uncompensated data?
+
+		uint8_t temp[BMP2_P_T_LEN] = { 0 };
+		struct bmp2_uncomp_data uncomp_data = { 0 };
+		bmp2_get_regs(BMP2_REG_PRES_MSB, temp, BMP2_P_T_LEN, &bmp2);
+		parse_sensor_data(temp, &uncomp_data);
+
+		Serial.printf("uncomp sensor data: p: %d, t: %d\n", uncomp_data.pressure, uncomp_data.temperature);
 
 		/* Read compensated data */
 		rslt = bmp2_get_sensor_data(&comp_data, &bmp2);
@@ -667,10 +681,12 @@ void readBmp280() {
 
 
 void altimeterSetup() {
-	bmp280Setup();
+	//bmp280Setup();
+	bmp390Setup();
 }
 void readAltimeter() {
-	readBmp280();
+	//readBmp280();
+	readBmp390();
 }
 
 float getBaromAltitude(){
