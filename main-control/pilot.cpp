@@ -13,7 +13,7 @@ constexpr float MIN_SAFE_AIRSPEED = 4;
 constexpr float AIRSPEED_CORRECTION_START = 6;
 constexpr float AIRSPEED_CORRECTION_FACTOR = 30 / (AIRSPEED_CORRECTION_START - MIN_SAFE_AIRSPEED); // degrees per (m/s)
 
-constexpr float MAX_CLIMB_RATE = 1; // conservative
+constexpr float MAX_CLIMB_RATE = 1.5; // conservative
 
 constexpr float MIN_PITCH = -30; // degrees
 constexpr float MAX_PITCH = 30; // degrees
@@ -150,7 +150,6 @@ kpid throttleControl(0, 1, 1 / TOP_SPEED, -0.7 / TOP_SPEED, 0, 0);
 void setTargetBearing(float target){
 	targetBearing = target;
 }
-
 
 void pilotLoop() {
 #ifdef NO_PILOT_START
