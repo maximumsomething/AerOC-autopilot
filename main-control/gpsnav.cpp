@@ -38,8 +38,9 @@ namespace GPSNav {
 	gps_fix fix;
 	NeoGPS::Location_t currentLoc;
 	NeoGPS::Location_t targetLoc;
+	float target_dist; //how many meters from a target before we consider it to have been "reached"
 
-	ring_buffer<NeoGPS::Location_t> waypoints;
+	ring_buffer<NeoGPS::Location_t> waypoints(1);
 	
 	float bearingError; //a number by which we rotate our reference rotation about the unit z axis to make it point towards true north. Time-averaged difference between gps heading and inertial heading
 	float bearingToTarget; //calculated bearing to our target location
@@ -55,8 +56,11 @@ namespace GPSNav {
 		gpsPort.begin(9600);
 	}
 
-	void setWaypoints(float[][] waypoints, int numWaypoints){
-
+	void setWaypoints(float routePoints[][2], int numWaypoints){
+		waypoints = ring_buffer<NeoGPS::Location_t>(numWaypoints);
+		for(int i = 0; i < numWaypoints; i++){
+			waypoints.put(NeoGPS::Location_t(routePoints[i][0], routePoints[i][1]));
+		}
 	}
 
 	// Update the RTC using the current GPS fix time
@@ -108,13 +112,17 @@ namespace GPSNav {
 		}
 
 		//If we're close enough to our target, move on to the next one in the buffer;
-
-        BearingToTarget = curLocation.BearingToDegrees(tarLocation);
+		if(currentLoc.DistanceKm(targetLoc)*1000 < target_dist){
+			NeoGPS::Location_t buffer = targetLoc;
+			targetLoc = waypoints.pop();
+			waypoints.put(buffer);
+		}
+        bearingToTarget = currentLoc.BearingToDegrees(targetLoc);
+	}
+	float getBearingError(){
+		return bearingError;
 	}
 
-	float getTrueBearing(){
-		return bearing + bearingError;
-	}
 	float getBearingToTarget(){
 		return bearingToTarget;
 	}

@@ -1,7 +1,6 @@
 #pragma once 
 #include <memory>   
-template <class T>
-class ring_buffer {
+template <class T> class ring_buffer {
 public:
 	explicit ring_buffer(size_t size) :
 		buf_(std::unique_ptr<T[]>(new T[size])),
@@ -77,6 +76,6 @@ private:
 	std::unique_ptr<T[]> buf_;
 	size_t head_ = 0;
 	size_t tail_ = 0;
-	const size_t max_size_;
+	size_t max_size_;
 	bool full_ = 0;
 };

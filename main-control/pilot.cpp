@@ -3,6 +3,7 @@
 #include "inertial.h"
 #include "sensorcomm.h"
 #include "telemetry.h"
+#include "gpsnav.h"
 #include <cmath>
 #include <PWMServo.h>
 
@@ -110,7 +111,7 @@ void pilotSetup() {
 
 void pilotStart() {
 	targetAltitude = DeadReckoner::getAltitude();
-	targetBearing = DeadReckoner::getBearing();
+	//targetBearing = DeadReckoner::getBearing();
 }
 
 // calculate target vertical speed from target elevation
@@ -152,6 +153,9 @@ void pilotLoop() {
 #else
 	const float targetVertSpeed = calcTargetVertSpeed();
 #endif
+
+	//Get bearing to target GPS location from GPSNav
+	targetBearing = GPSNav::getBearingToTarget();
 
 	// calculate desired pitch from target vertical speed and current airspeed
 	// if (current airspeed - safe airspeed) < val then calculate something from (current airspeed - safe airspeed)
