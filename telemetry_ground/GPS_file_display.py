@@ -8,7 +8,7 @@ print("Type, Latitude, Longitude")
 
 while(label = tp.readline):
     try:
-        if(label == "GPSFix" or "GPSReckon"):
+        if(label == "GPSFix" or label == "GPSReckon"):
             print("T,"+str(int(tp.get("gpsReckon", "lat"))*1.0e-7)+","+str(int(tp.get("gpsReckon", "lng"))*1.0e-7))
     except ValueError as e:
         pass
