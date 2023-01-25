@@ -282,6 +282,7 @@ void dispatch_telem_packet(uint8_t id, uint16_t length, const void* data) {
 }
 
 void telem_strmessage(const char* string) {
+	print_telem_timestamp();
 	telem_save_stream->print("strmessage: ");
 	telem_save_stream->println(string);
 	dispatch_telem_packet(telem_id_special_strmessage, (uint16_t) strlen(string), (const void*) string);

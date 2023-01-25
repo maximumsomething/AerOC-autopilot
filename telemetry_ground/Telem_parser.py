@@ -30,7 +30,7 @@ def read_line():
 		label = parts[1]
 		# basic syntax check
 		if label[-1] != ':':
-			raise Exception("Invalid telem line: no label")
+			raise Exception("Invalid telem line: no label. Line: " + line)
 		# remove colon
 		label = label.rstrip(":")
 		# special handling for strmessage
