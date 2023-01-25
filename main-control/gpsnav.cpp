@@ -38,7 +38,7 @@ namespace GPSNav {
 	gps_fix fix;
 	NeoGPS::Location_t currentLoc;
 	NeoGPS::Location_t targetLoc;
-	float target_dist; //how many meters from a target before we consider it to have been "reached"
+	const float targetDist = 7; //how many meters from a target before we consider it to have been "reached"
 
 	bool enableGPSNav = false;
 	ring_buffer<NeoGPS::Location_t> waypoints(1);
@@ -116,7 +116,7 @@ namespace GPSNav {
 		}
 
 		//If we're close enough to our target, move on to the next one in the buffer;
-		if(currentLoc.DistanceKm(targetLoc)*1000 < target_dist){
+		if(currentLoc.DistanceKm(targetLoc)*1000 < targetDist){
 			NeoGPS::Location_t buffer = targetLoc;
 			targetLoc = waypoints.pop();
 			waypoints.put(buffer);
