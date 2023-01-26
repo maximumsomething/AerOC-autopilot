@@ -194,8 +194,9 @@ namespace DeadReckoner {
 		// Every iteration, new samples are multiplied by this (and old samples by 1 - this)
 		const float multiplier;
 
-		ulong lastNewTarget = 0;
+		//ulong lastNewTarget = 0;
 		ValueType sumSinceLastTarget = 0;
+		uint samplesSinceLastTarget = 0;
 
 	public:
 		ValueType lastVal;
@@ -208,18 +209,19 @@ namespace DeadReckoner {
 		ValueType newToIntegrate(ValueType toIntegrate) {
 			lastVal += toIntegrate * fastTimeDelta;
 			sumSinceLastTarget += lastVal;
+			samplesSinceLastTarget++;
 
 			return lastVal;
 		}
 
 		float newTarget(ValueType noisyTarget) {
-			ulong newTime = micros();
-			ulong timeDiff = newTime = lastNewTarget;
+			//ulong newTime = micros();
+			//ulong timeDiff = newTime = lastNewTarget;
 			lastNewTarget = newTime;
 
-			ValueType avgSinceLastTarget = sumSinceLastTarget / timeDiff * 1000000;
+			ValueType avgSinceLastTarget = sumSinceLastTarget / samplesSinceLastTarget;
 			ValueType error = noisyTarget - avgSinceLastTarget;
-			lastVal = (1 - multiplier) * lastVal + (multiplier * error);
+			lastVal = (1 - multiplier)*lastVal + multiplier*error;
 			return lastVal;
 		}
 	};

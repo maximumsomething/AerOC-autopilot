@@ -34,7 +34,7 @@ namespace GPSNav {
 	gps_fix fix;
 	NeoGPS::Location_t currentLoc;
 	NeoGPS::Location_t targetLoc;
-	float target_dist; //how many meters from a target before we consider it to have been "reached"
+	float target_dist = 7; //how many meters from a target before we consider it to have been "reached"
 
 	bool enableGPSNav = true;
 	ring_buffer<NeoGPS::Location_t> waypoints(1);
@@ -108,7 +108,7 @@ namespace GPSNav {
 
 				telem_gpsFix(currentLoc.lat(), currentLoc.lon(), fix.altitude(), speed_mps, fix.heading(), fix.velocity_down, bearingError);
 			}
-			if (fix.valid.altitude) {
+			if (fix.valid.altitude && fix.valid.velned) {
 				DeadReckoner::setGpsVertical(fix.altitude(), fix.velocity_down);
 			}
 		} else {
