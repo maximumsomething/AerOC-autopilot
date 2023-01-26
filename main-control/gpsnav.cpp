@@ -60,20 +60,11 @@ namespace GPSNav {
 		}
 		targetLoc = waypoints.get(0);
 	}
-
-	void askGpsForPubx() {
-
-		#if defined( NMEAGPS_PARSE_PUBX_00 )
-			gps.send_P( &gpsPort, F("PUBX,00") );
-		#endif
-		#if defined( NMEAGPS_PARSE_PUBX_04 )
-			gps.send_P( &gpsPort, F("PUBX,04") );
-		#endif
-
-	}
 	
+	static uint8_t readBuf[1024];
 	void gpsSetup() {
 		gpsPort.begin(38400);
+		gpsPort.addMemoryForRead(readBuf, sizeof(readBuf));
 		float waypointArray[2][2] = {{41.300093, -82.224700},{41.298565, -82.224848}};
 		setWaypoints(waypointArray, 2);
 
@@ -101,10 +92,6 @@ namespace GPSNav {
 			trace_all( DEBUG_PORT, gps, fix );
 			fix = gps.read();
 			updateClock();
-			// needed for velocity_down
-			askGpsForPubx();
-
-			fix.calculateNorthAndEastVelocityFromSpeedAndHeading();
 
 			if (fix.valid.location) {
 
@@ -122,12 +109,12 @@ namespace GPSNav {
 				float inertialHeadingRad = (fix.heading() - bearingError) / 180.0 * M_PI;
 
 				DeadReckoner::resetPositionReckoning(cos(inertialHeadingRad) * speed_mps, -sin(inertialHeadingRad) * speed_mps);
-				Serial.println("position valid!");
+				//Serial.println("position valid!");
 
 				telem_gpsFix(currentLoc.lat(), currentLoc.lon(), fix.altitude(), speed_mps, fix.heading(), fix.velocity_down, bearingError);
 			}
 			if (fix.valid.altitude && fix.valid.velned) {
-				Serial.println("velned valid!");
+				//Serial.println("velned valid!");
 				DeadReckoner::setGpsVertical(fix.altitude(), -fix.velocity_down);
 			}
 
