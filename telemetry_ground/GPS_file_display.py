@@ -11,6 +11,6 @@ label = ""
 while(label := tp.read_line()):
     try:
         if(label == desiredLabel):
-            print("T,"+tp.values["GPSreckon"].timestamp+","+str(int(tp.get(desiredLabel, "lat"))*1.0e-7)+","+str(int(tp.get(desiredLabel, "lng"))*1.0e-7))
+            print("T,"+tp.values[desiredLabel].timestamp+","+str(int(tp.get(desiredLabel, "lat"))*1.0e-7)+","+str(int(tp.get(desiredLabel, "lng"))*1.0e-7))
     except ValueError as e:
         pass
