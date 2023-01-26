@@ -14,7 +14,7 @@ void setup() {
   pinMode(10, OUTPUT);
   pinMode(11, OUTPUT);
   pinMode(12, OUTPUT);
-  pinMode(13, OUTPUT);
+  pinMode(13, OUTPUT); //This pin signals the Teensy that the autopilot is engaged
   pinMode(A0, INPUT); //Autopilot inputs
   pinMode(A1, INPUT);
   pinMode(A2, INPUT);
@@ -44,8 +44,8 @@ void loop() {
   }
   
   if(onAutopilot){
-    PORTB = (PORTB & 0b11000000) | (PINC & 0b00111111) | 0b00000000; 
+    PORTB = (PORTB & 0b11000000) | (PINC & 0b00111111) | 0b00100000; 
   }else{
-    PORTB = (PORTB & 0b11000000) | (PIND >> 2) | 0b00100000;
+    PORTB = (PORTB & 0b11000000) | (PIND >> 2) | 0b00000000;
   }
 }
