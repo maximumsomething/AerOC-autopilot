@@ -9,6 +9,6 @@ calInertial float ax, float ay, float az, float anorm
 controlOut float targetVertSpeed, float targetPitch, float targetRoll, float targetBearing, float throttle, float elevators, float ailerons, float rudder
 warningLoopRanOverByMicroseconds int32_t us
 warningImuStalledByTicks uint8_t ticks
-gpsFix int32_t lat, int32_t lng, float altitude
+gpsFix int32_t lat, int32_t lng, float altitude, float speed, float heading, float velDown, float bearingError
 gpsReckon int32_t lat, int32_t lng
 

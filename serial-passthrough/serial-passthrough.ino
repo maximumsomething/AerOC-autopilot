@@ -13,7 +13,7 @@ void loop() {
     passthrough.write(Serial.read());   // read it and send it out Serial1 (pins 0 & 1)
   }
 
-  if (Serial1.available()) {     // If anything comes in Serial1 (pins 0 & 1)
+  if (passthrough.available()) {     // If anything comes in Serial1 (pins 0 & 1)
     Serial.write(passthrough.read());   // read it and send it out Serial (USB)
   }
 }

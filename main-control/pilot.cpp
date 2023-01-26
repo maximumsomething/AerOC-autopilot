@@ -32,12 +32,20 @@ float targetAltitude = 0;
 // set when the autopilot is enabled.
 float targetBearing = 180;
 
-// utility functions
+// utility functions. Maybe put these in their own file at some point
 
 float signf(float num) {
 	if (num > 0) return 1;
 	if (num < 0) return -1;
 	return 0;
+}
+
+// returns a value of s - t between -180 and 180 degrees.
+float angleDiff(float s, float t) {
+	float diff = fmod(s - t, 360);
+	if (diff < -180) diff += 360;
+	if (diff > 180) diff -= 360;
+	return diff;
 }
 
 class kpid {
@@ -185,9 +193,7 @@ void pilotLoop() {
 	// control aileron to set roll
 	//float targetRoll = rollControl.update(targetBearing, DeadReckoner::getBearing());
 	// Calculate the angular difference from the target
-	float bearingDiff = DeadReckoner::getBearing() - targetBearing;
-	if (bearingDiff < -180) bearingDiff += 360;
-	if (bearingDiff > 180) bearingDiff -= 360;
+	float bearingDiff = angleDiff(DeadReckoner::getBearing(), targetBearing);
 
 	// don't use kpid class, because we don't need i and d terms and we have a difference not a target and input
 	// the correct kP is on the order of magnitude of 1, so why not just have it be 1?

@@ -14,10 +14,6 @@
 #define GPS_PORT_NAME "Serial5"
 #define DEBUG_PORT Serial
 
-// Change the configuration according to the output of the NMEAOrder.ino example code
-#include <NMEAGPS_cfg.h>
-#undef LAST_SENTENCE_IN_INTERVAL
-#define LAST_SENTENCE_IN_INTERVAL NMEAGPS::NMEA_GLL
 #include <NMEAGPS.h>
 
 // For printing GPS output
@@ -38,14 +34,17 @@ namespace GPSNav {
 	gps_fix fix;
 	NeoGPS::Location_t currentLoc;
 	NeoGPS::Location_t targetLoc;
-	const float targetDist = 7; //how many meters from a target before we consider it to have been "reached"
+	float target_dist; //how many meters from a target before we consider it to have been "reached"
 
-	bool enableGPSNav = false;
+	bool enableGPSNav = true;
 	ring_buffer<NeoGPS::Location_t> waypoints(1);
 	float bearingError; //a number by which we rotate our reference rotation about the unit z axis to make it point towards true north. Time-averaged difference between gps heading and inertial heading
 	float bearingToTarget; //calculated bearing to our target location
 
-	float bearingSmoothing = .5; //the smoothing coefficient for true bearing averaging
+	constexpr float BEARING_SMOOTHING = 0.2; //the smoothing coefficient for true bearing averaging
+	// Coefficient for speed weighting of bearing averaging (m/s)
+	// Currently set to the maximum speed we kinda expect to be going
+	constexpr float SPEED_COEFF = 15;
 
 	time_t getTeensy3Time() {
 		//Serial.println("getTeensy3Time");
@@ -84,6 +83,7 @@ namespace GPSNav {
 	void updatenav() {
         
 		if(gps.available( gpsPort )) {
+			//Serial.printf("GPS READ");
 			trace_all( DEBUG_PORT, gps, fix );
 			fix = gps.read();
 			updateClock();
@@ -92,15 +92,24 @@ namespace GPSNav {
 
 				currentLoc = fix.location;
 	
-				// Todo: there's some fuckery that needs to be done with GPS vs. inertial bearings
-				// For now, just update it every fix
-				bearingError = bearingSmoothing*(fix.heading() - DeadReckoner::getBearing()) + (1-bearingSmoothing)*bearingError;
 				float speed_mps = fix.speed_metersph() / 3600.0;
-				float heading_rad = (fix.heading() - bearingError) / 180.0 * M_PI;
 
-				DeadReckoner::resetPositionReckoning(cos(heading_rad) * speed_mps, -sin(heading_rad) * speed_mps);
+				float bearingMult = BEARING_SMOOTHING * min(speed_mps / SPEED_COEFF, 1);
+				float bearingDiff = angleDiff(fix.heading(), DeadReckoner::getBearing());
 
-				telem_gpsFix(currentLoc.lat(), currentLoc.lon(), fix.altitude());
+				bearingError = bearingMult*bearingDiff + (1-bearingMult)*bearingError;
+				if (bearingError < -180) bearingError += 360;
+				if (bearingError > 180) bearingError -= 360;
+
+				float inertialHeadingRad = (fix.heading() - bearingError) / 180.0 * M_PI;
+
+				DeadReckoner::resetPositionReckoning(cos(inertialHeadingRad) * speed_mps, -sin(inertialHeadingRad) * speed_mps);
+
+
+				telem_gpsFix(currentLoc.lat(), currentLoc.lon(), fix.altitude(), speed_mps, fix.heading(), fix.velocity_down, bearingError);
+			}
+			if (fix.valid.altitude) {
+				DeadReckoner::setGpsVertical(fix.altitude(), fix.velocity_down);
 			}
 		} else {
 			Vector2f offset(DeadReckoner::horizontalX(), DeadReckoner::horizontalY());
@@ -116,7 +125,7 @@ namespace GPSNav {
 		}
 
 		//If we're close enough to our target, move on to the next one in the buffer;
-		if(currentLoc.DistanceKm(targetLoc)*1000 < targetDist){
+		if(currentLoc.DistanceKm(targetLoc)*1000 < target_dist){
 			NeoGPS::Location_t buffer = targetLoc;
 			targetLoc = waypoints.pop();
 			waypoints.put(buffer);
@@ -129,10 +138,6 @@ namespace GPSNav {
 	}
 	float getBearingError(){
 		return bearingError;
-	}
-
-	float getAltitude() {
-		return fix.altitude();
 	}
 
 	float getBearingToTarget(){

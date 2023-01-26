@@ -21,6 +21,7 @@ namespace DeadReckoner {
 	float getVerticalSpeed();
 	float getAltitude();
 	void resetPositionReckoning(float newXVel, float newYVel);
+	void setGpsVertical(float altitude, float vertSpeed);
 	// We want to avoid Eigen classes outside of the couple files that actually use them because of compile times
 	float horizontalX();
 	float horizontalY();

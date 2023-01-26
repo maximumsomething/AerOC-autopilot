@@ -60,7 +60,7 @@ namespace DeadReckoner {
 	int samplesGotten = 0;
 	Vector3f startupGyroAvg = Vector3f::Zero();
 
-
+#define NO_BAROM_ALTITUDE
 //#define CALIBRATE_ACCEL_BIAS
 
 	// check whether acceleration and rotation is stable this sample
@@ -157,6 +157,8 @@ namespace DeadReckoner {
 
 
 	// drift corrected integrator
+	// Uses a noisy but non-drifty signal to correct for integration drift
+	// For integrating reasonably fast values, namely as barometer
 	class DriftCorrInt {
 		float timeDelta;
 		// Every iteration, new samples are multiplied by this (and old samples by 1 - this)
@@ -184,8 +186,53 @@ namespace DeadReckoner {
 		}
 	};
 
+	// For when the noisy non-drifty values come in slowly (such as from GPS)
+	class DriftCorrIntSlow {
+		typedef float ValueType;
+
+		const float fastTimeDelta;
+		// Every iteration, new samples are multiplied by this (and old samples by 1 - this)
+		const float multiplier;
+
+		ulong lastNewTarget = 0;
+		ValueType sumSinceLastTarget = 0;
+
+	public:
+		ValueType lastVal;
+
+		DriftCorrIntSlow(float fastTimeDelta, float multiplier, float initVal = 0):
+			fastTimeDelta(fastTimeDelta),
+			multiplier(multiplier),
+			lastVal(initVal) {}
+
+		ValueType newToIntegrate(ValueType toIntegrate) {
+			lastVal += toIntegrate * fastTimeDelta;
+			sumSinceLastTarget += lastVal;
+
+			return lastVal;
+		}
+
+		float newTarget(ValueType noisyTarget) {
+			ulong newTime = micros();
+			ulong timeDiff = newTime = lastNewTarget;
+			lastNewTarget = newTime;
+
+			ValueType avgSinceLastTarget = sumSinceLastTarget / timeDiff * 1000000;
+			ValueType error = noisyTarget - avgSinceLastTarget;
+			lastVal = (1 - multiplier) * lastVal + (multiplier * error);
+			return lastVal;
+		}
+	};
+
+
+#ifndef NO_BAROM_ALTITUDE
 	DriftCorrInt verticalSpeedCalculator(SAMPLE_DELTA, 20);
 	DriftCorrInt altitudeCalculator(SAMPLE_DELTA, 5);
+#else
+	DriftCorrIntSlow verticalSpeedCalculator(SAMPLE_DELTA, 0.1);
+	DriftCorrIntSlow altitudeCalculator(SAMPLE_DELTA, 0.1);
+#endif
+
 
 	void calibrateDown();
 
@@ -211,18 +258,22 @@ namespace DeadReckoner {
 
 		updateAverages(rawAccel);
 
-		// calculate vertical speed & altitude with barometer & accelerometer
-		//float curBaromAltitude = getBaromAltitude();
-		float curBaromAltitude = GPSNav::getAltitude();
-		float baromVerticalSpeed = (curBaromAltitude - prevBaromAltitude) / SAMPLE_DELTA;
-		prevBaromAltitude = curBaromAltitude;
-
 		// Subtract gravity, convert to m/s^2
 		float accelms = (calibratedAccel[2] - calibratedG) * MS2_PER_G;
+
+#ifndef NO_BAROM_ALTITUDE
+		// calculate vertical speed & altitude with barometer & accelerometer
+		float curBaromAltitude = getBaromAltitude();
+		float baromVerticalSpeed = (curBaromAltitude - prevBaromAltitude) / SAMPLE_DELTA;
+		prevBaromAltitude = curBaromAltitude;
 
 		// integrate vertical speed and altitude and correct for drift
 		float verticalSpeed = verticalSpeedCalculator.newVal(accelms, baromVerticalSpeed);
 		altitudeCalculator.newVal(verticalSpeed, curBaromAltitude);
+#else
+		float verticalSpeed = verticalSpeedCalculator.newToIntegrate(accelms);
+		altitudeCalculator.newToIntegrate(verticalSpeed);
+#endif
 
 		// Integrate horizontal velocity and position
 		horizontalVel += Vector2f(calibratedAccel.x(), calibratedAccel.y()) * MS2_PER_G * SAMPLE_DELTA;
@@ -269,8 +320,7 @@ namespace DeadReckoner {
 
 			// reset vertical drift
 			verticalSpeedCalculator.lastVal = 0;
-			//altitudeCalculator.lastVal = getBaromAltitude();
-			altitudeCalculator.lastVal = GPSNav::getAltitude();
+			altitudeCalculator.lastVal = getBaromAltitude();
 
 		// //}
 		if (!downCalibrated) {
@@ -288,6 +338,13 @@ namespace DeadReckoner {
 		downCalibrated = false;
 		referenceRotation = Quaternionf::Identity();
 		digitalWrite(13, LOW);
+	}
+
+	void setGpsVertical(float altitude, float vertSpeed) {
+#ifdef NO_BAROM_ALTITUDE
+		verticalSpeedCalculator.newTarget(vertSpeed);
+		altitudeCalculator.newTarget(altitude);
+#endif
 	}
 
 	float getRoll() {return roll;}

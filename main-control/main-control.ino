@@ -81,11 +81,11 @@ void loop() {
 		ticksSinceLastImuRead = 0;
 	}
 	// Do this at 25 Hz
-	if (loopCounter % 2 == 1) {
+	/*if (loopCounter % 2 == 1) {
 		readAltimeter();
-	}
+	}*/
 
-	airspeedCalc::readAirspeed();
+	//airspeedCalc::readAirspeed();
 
 	pilotLoop();
 	//Serial.println(micros() - startTime);

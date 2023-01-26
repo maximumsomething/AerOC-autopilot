@@ -4,5 +4,4 @@ namespace GPSNav {
 	void gpsSetup();
 	float getBearingToTarget();
 	float getBearingError();
-	float getAltitude();
 }
