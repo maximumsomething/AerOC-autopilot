@@ -111,18 +111,20 @@ namespace GPSNav {
 			if (fix.valid.altitude && fix.valid.velned) {
 				DeadReckoner::setGpsVertical(fix.altitude(), fix.velocity_down);
 			}
-		} else {
+		}
+		else {
 			Vector2f offset(DeadReckoner::horizontalX(), DeadReckoner::horizontalY());
-			float bearing = atan2(offset.x(), offset.y()) / M_PI * 180.0;
-			bearing += bearingError;
+			float inerBearing = atan2(offset.x(), offset.y()) / M_PI * 180.0;
+			float compassBearingDeg = inerBearing + bearingError;
 			float distanceM = offset.norm();
 			//Serial.printf("Pos offset: %f, %f\n", offset.x(), offset.y());
 
 			currentLoc = fix.location;
-			currentLoc.OffsetBy(distanceM / 1000 / NeoGPS::Location_t::EARTH_RADIUS_KM, bearing);
-
-			telem_gpsReckon(currentLoc.lat(), currentLoc.lon());
+			currentLoc.OffsetBy(distanceM / 1000 / NeoGPS::Location_t::EARTH_RADIUS_KM, compassBearingDeg / 180 * M_PI);
 		}
+
+		telem_gpsReckon(currentLoc.lat(), currentLoc.lon());
+
 
 		//If we're close enough to our target, move on to the next one in the buffer;
 		if(currentLoc.DistanceKm(targetLoc)*1000 < target_dist){
