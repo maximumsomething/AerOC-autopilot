@@ -15,6 +15,7 @@
 #define DEBUG_PORT Serial
 
 #include <NMEAGPS.h>
+#include <ublox/ubxNMEA.h>
 
 // For printing GPS output
 #include <Streamers.h>
@@ -30,7 +31,7 @@ namespace GPSNav {
 	using Eigen::Vector3f;
 	using Eigen::Vector2f;
 
-	NMEAGPS gps;
+	ubloxNMEA gps;
 	gps_fix fix;
 	NeoGPS::Location_t currentLoc;
 	NeoGPS::Location_t targetLoc;
@@ -59,11 +60,24 @@ namespace GPSNav {
 		}
 		targetLoc = waypoints.get(0);
 	}
+
+	void askGpsForPubx() {
+
+		#if defined( NMEAGPS_PARSE_PUBX_00 )
+			gps.send_P( &gpsPort, F("PUBX,00") );
+		#endif
+		#if defined( NMEAGPS_PARSE_PUBX_04 )
+			gps.send_P( &gpsPort, F("PUBX,04") );
+		#endif
+
+	}
 	
 	void gpsSetup() {
-		gpsPort.begin(9600);
+		gpsPort.begin(38400);
 		float waypointArray[2][2] = {{41.300093, -82.224700},{41.298565, -82.224848}};
 		setWaypoints(waypointArray, 2);
+
+		askGpsForPubx();
 	}
 
 	// Update the RTC using the current GPS fix time
@@ -87,6 +101,10 @@ namespace GPSNav {
 			trace_all( DEBUG_PORT, gps, fix );
 			fix = gps.read();
 			updateClock();
+			// needed for velocity_down
+			askGpsForPubx();
+
+			fix.calculateNorthAndEastVelocityFromSpeedAndHeading();
 
 			if (fix.valid.location) {
 
@@ -104,13 +122,15 @@ namespace GPSNav {
 				float inertialHeadingRad = (fix.heading() - bearingError) / 180.0 * M_PI;
 
 				DeadReckoner::resetPositionReckoning(cos(inertialHeadingRad) * speed_mps, -sin(inertialHeadingRad) * speed_mps);
-
+				Serial.println("position valid!");
 
 				telem_gpsFix(currentLoc.lat(), currentLoc.lon(), fix.altitude(), speed_mps, fix.heading(), fix.velocity_down, bearingError);
 			}
 			if (fix.valid.altitude && fix.valid.velned) {
-				DeadReckoner::setGpsVertical(fix.altitude(), fix.velocity_down);
+				Serial.println("velned valid!");
+				DeadReckoner::setGpsVertical(fix.altitude(), -fix.velocity_down);
 			}
+
 		}
 		else {
 			Vector2f offset(DeadReckoner::horizontalX(), DeadReckoner::horizontalY());
@@ -122,7 +142,6 @@ namespace GPSNav {
 			currentLoc = fix.location;
 			currentLoc.OffsetBy(distanceM / 1000 / NeoGPS::Location_t::EARTH_RADIUS_KM, compassBearingDeg / 180 * M_PI);
 		}
-
 		telem_gpsReckon(currentLoc.lat(), currentLoc.lon());
 
 

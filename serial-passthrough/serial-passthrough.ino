@@ -2,7 +2,7 @@
 
 void setup() {
   Serial.begin(115200);
-  passthrough.begin(9600);
+  passthrough.begin(38400);
   while(!Serial || !passthrough) { delay(5); }
 
 }
