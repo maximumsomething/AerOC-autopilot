@@ -85,7 +85,7 @@ void loop() {
 		readAltimeter();
 	}*/
 
-	//airspeedCalc::readAirspeed();
+	airspeedCalc::readAirspeed();
 
 	pilotLoop();
 	//Serial.println(micros() - startTime);

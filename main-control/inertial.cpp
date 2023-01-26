@@ -217,11 +217,11 @@ namespace DeadReckoner {
 		float newTarget(ValueType noisyTarget) {
 			//ulong newTime = micros();
 			//ulong timeDiff = newTime = lastNewTarget;
-			lastNewTarget = newTime;
+			//lastNewTarget = newTime;
 
 			ValueType avgSinceLastTarget = sumSinceLastTarget / samplesSinceLastTarget;
 			ValueType error = noisyTarget - avgSinceLastTarget;
-			lastVal = (1 - multiplier)*lastVal + multiplier*error;
+			lastVal += multiplier*error;
 			return lastVal;
 		}
 	};
@@ -261,7 +261,7 @@ namespace DeadReckoner {
 		updateAverages(rawAccel);
 
 		// Subtract gravity, convert to m/s^2
-		float accelms = (calibratedAccel[2] - calibratedG) * MS2_PER_G;
+		float vertAccelms = (calibratedAccel[2] - calibratedG) * MS2_PER_G;
 
 #ifndef NO_BAROM_ALTITUDE
 		// calculate vertical speed & altitude with barometer & accelerometer
@@ -270,10 +270,10 @@ namespace DeadReckoner {
 		prevBaromAltitude = curBaromAltitude;
 
 		// integrate vertical speed and altitude and correct for drift
-		float verticalSpeed = verticalSpeedCalculator.newVal(accelms, baromVerticalSpeed);
+		float verticalSpeed = verticalSpeedCalculator.newVal(vertAccelms, baromVerticalSpeed);
 		altitudeCalculator.newVal(verticalSpeed, curBaromAltitude);
 #else
-		float verticalSpeed = verticalSpeedCalculator.newToIntegrate(accelms);
+		float verticalSpeed = verticalSpeedCalculator.newToIntegrate(vertAccelms);
 		altitudeCalculator.newToIntegrate(verticalSpeed);
 #endif
 

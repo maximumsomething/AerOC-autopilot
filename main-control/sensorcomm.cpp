@@ -19,7 +19,7 @@ void setupAllComms() {
 	i2cSetup();
 	//i2cScan();
 	imuSetup();
-	altimeterSetup();
+	//altimeterSetup();
 	airspeedCalc::airspeedSetup();
 	// status LED
 	pinMode(13, OUTPUT);
