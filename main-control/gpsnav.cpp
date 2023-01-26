@@ -36,7 +36,7 @@ namespace GPSNav {
 	NeoGPS::Location_t targetLoc;
 	float target_dist = 7; //how many meters from a target before we consider it to have been "reached"
 
-	bool enableGPSNav = true;
+	constexpr bool enableGPSNav = true;
 	ring_buffer<NeoGPS::Location_t> waypoints(1);
 	float bearingError; //a number by which we rotate our reference rotation about the unit z axis to make it point towards true north. Time-averaged difference between gps heading and inertial heading
 	float bearingToTarget; //calculated bearing to our target location
