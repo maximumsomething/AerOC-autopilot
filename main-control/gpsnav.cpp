@@ -115,13 +115,13 @@ namespace GPSNav {
 			}
 			if (fix.valid.altitude && fix.valid.velned) {
 				//Serial.println("velned valid!");
-				DeadReckoner::setGpsVertical(fix.altitude(), -fix.velocity_down);
+				DeadReckoner::setGpsVertical(fix.altitude(), -fix.velocity_down / 100.0);
 			}
 
 		}
 		else {
 			Vector2f offset(DeadReckoner::horizontalX(), DeadReckoner::horizontalY());
-			float inerBearing = atan2(offset.x(), offset.y()) / M_PI * 180.0;
+			float inerBearing = atan2(offset.y(), offset.x()) / M_PI * 180.0;
 			float compassBearingDeg = inerBearing + bearingError;
 			float distanceM = offset.norm();
 			//Serial.printf("Pos offset: %f, %f\n", offset.x(), offset.y());
