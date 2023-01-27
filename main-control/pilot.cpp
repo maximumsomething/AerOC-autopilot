@@ -249,6 +249,10 @@ void pilotLoop() {
 	elevatorSignal = (elevatorSignal * 70) + 90;
 	throttleSignal *= 180;
 
+	if(unsafeRegime && DeadReckoner::getPitch() < MIN_PITCH * 2){
+		aileronSignal = 0;
+	}
+
 	aileronServo.write(aileronSignal);
 	elevatorServo.write(elevatorSignal);
 	if(!TEST_MODE) throttleServo.write(throttleSignal);
