@@ -27,6 +27,11 @@
 #include <TimeLib.h>
 #include <NeoTime.h>
 
+/* Here, "bearing" refers to inertial bearing (offset between
+the direction we were pointing during calibration) and
+"heading" refers to GPS heading (direction of travel over the ground, relative to north).
+*/
+
 namespace GPSNav {
 	using Eigen::Vector3f;
 	using Eigen::Vector2f;
@@ -39,8 +44,8 @@ namespace GPSNav {
 
 	constexpr bool enableGPSNav = true;
 	ring_buffer<NeoGPS::Location_t> waypoints(1);
-	float bearingError; //a number by which we rotate our reference rotation about the unit z axis to make it point towards true north. Time-averaged difference between gps heading and inertial heading
-	float bearingToTarget; //calculated bearing to our target location
+	float bearingError = 0; //a number by which we rotate our reference rotation about the unit z axis to make it point towards true north. Time-averaged difference between gps heading and inertial bearing
+	float headingToTarget = 0; //calculated bearing to our target location
 
 	constexpr float BEARING_SMOOTHING = 0.2; //the smoothing coefficient for true bearing averaging
 	// Coefficient for speed weighting of bearing averaging (m/s)
@@ -67,8 +72,6 @@ namespace GPSNav {
 		gpsPort.addMemoryForRead(readBuf, sizeof(readBuf));
 		float waypointArray[2][2] = {{41.300093, -82.224700},{41.298565, -82.224848}};
 		setWaypoints(waypointArray, 2);
-
-		askGpsForPubx();
 	}
 
 	// Update the RTC using the current GPS fix time
@@ -115,19 +118,21 @@ namespace GPSNav {
 			}
 			if (fix.valid.altitude && fix.valid.velned) {
 				//Serial.println("velned valid!");
-				DeadReckoner::setGpsVertical(fix.altitude(), -fix.velocity_down / 100.0);
+				float velDownCmps = fix.velocity_down;
+				float velUpMps = -velDownCmps / 100.0;
+				DeadReckoner::setGpsVertical(fix.altitude(), velUpMps);
 			}
 
 		}
 		else {
 			Vector2f offset(DeadReckoner::horizontalX(), DeadReckoner::horizontalY());
 			float inerBearing = atan2(offset.y(), offset.x()) / M_PI * 180.0;
-			float compassBearingDeg = inerBearing + bearingError;
+			float compassHeadingDeg = inerBearing + bearingError;
 			float distanceM = offset.norm();
 			//Serial.printf("Pos offset: %f, %f\n", offset.x(), offset.y());
 
 			currentLoc = fix.location;
-			currentLoc.OffsetBy(distanceM / 1000 / NeoGPS::Location_t::EARTH_RADIUS_KM, compassBearingDeg / 180 * M_PI);
+			currentLoc.OffsetBy(distanceM / 1000 / NeoGPS::Location_t::EARTH_RADIUS_KM, compassHeadingDeg / 180 * M_PI);
 		}
 		telem_gpsReckon(currentLoc.lat(), currentLoc.lon());
 
@@ -138,17 +143,10 @@ namespace GPSNav {
 			targetLoc = waypoints.pop();
 			waypoints.put(buffer);
 		}
-        bearingToTarget = currentLoc.BearingToDegrees(targetLoc);
+        headingToTarget = currentLoc.BearingToDegrees(targetLoc);
 
 		if(enableGPSNav){
-			setTargetBearing(bearingToTarget - bearingError);
+			setTargetBearing(headingToTarget - bearingError);
 		}
-	}
-	float getBearingError(){
-		return bearingError;
-	}
-
-	float getBearingToTarget(){
-		return bearingToTarget;
 	}
 }
