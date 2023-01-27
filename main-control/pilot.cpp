@@ -20,6 +20,8 @@ constexpr float MAX_PITCH = 30; // degrees
 
 constexpr float MAX_ROLL = 30;
 
+constexpr float SAFETY_MARGIN = 1.2; //the ammount that we can exceed max roll or pitch by before entering recovery mode
+
 constexpr float TOP_SPEED = 12; // Theoretical top airspeed used for calculating throttle
 
 constexpr bool TEST_MODE = false; //Test mode, disables throttle if true
@@ -31,6 +33,8 @@ float targetSpeed = 8;
 float targetAltitude = 0;
 // set when the autopilot is enabled.
 float targetBearing = 180;
+
+bool unsafeRegime = false; //enabled if max pitch or roll is exceeded by the safety margin, disables setTargetBearing() and sets target pitch to _
 
 // utility functions. Maybe put these in their own file at some point
 
@@ -157,15 +161,28 @@ kpid throttleControl(0, 1, 1 / TOP_SPEED, -0.7 / TOP_SPEED, 0, 0);
 //Constants determined by vibes
 
 void setTargetBearing(float target){
-	targetBearing = target;
+		targetBearing = target;
 }
 
 void pilotLoop() {
+
 #ifdef NO_PILOT_START
 	constexpr float targetVertSpeed = 0;
 #else
 	const float targetVertSpeed = calcTargetVertSpeed();
 #endif
+
+	float airspeed = airspeedCalc::airspeed;
+
+	if((abs(DeadReckoner::getRoll()) > MAX_ROLL * SAFETY_MARGIN || DeadReckoner::getPitch() < MIN_PITCH * SAFETY_MARGIN) || 
+	(!(airspeed == 0 || isnanf(airspeed)) && airspeed < MIN_SAFE_AIRSPEED)){
+		telem_strmessage("WARNING: UNSAFE FLIGHT REGIME");
+		unsafeRegime = true;
+	}
+	if(unsafeRegime && ((abs(DeadReckoner::getRoll()) < MAX_ROLL/SAFETY_MARGIN || DeadReckoner::getPitch() > MIN_PITCH / SAFETY_MARGIN) || 
+	(!(airspeed == 0 || isnanf(airspeed)) && airspeed > MIN_SAFE_AIRSPEED))){
+		unsafeRegime = false;
+	}
 
 	//Get bearing to target GPS location from GPSNav
 
@@ -174,7 +191,6 @@ void pilotLoop() {
 	// (PI loop) - something
 	// figure out the PI coefficients later
 	float targetPitch = -pitchControl.update(targetVertSpeed, DeadReckoner::getVerticalSpeed());
-	float airspeed = airspeedCalc::airspeed;
 	if (airspeed < AIRSPEED_CORRECTION_START && !TEST_MODE) {
 		targetPitch -= AIRSPEED_CORRECTION_FACTOR * (AIRSPEED_CORRECTION_START - airspeed);
 	}
@@ -197,17 +213,27 @@ void pilotLoop() {
 
 	// don't use kpid class, because we don't need i and d terms and we have a difference not a target and input
 	// the correct kP is on the order of magnitude of 1, so why not just have it be 1?
-	float targetRoll = -1 * bearingDiff;
-	targetRoll = fmax(targetRoll, -MAX_ROLL);
-	targetRoll = fmin(targetRoll, MAX_ROLL);
+	float targetRoll;
+	if(!unsafeRegime){
+		targetRoll = -1 * bearingDiff;
+		targetRoll = fmax(targetRoll, -MAX_ROLL);
+		targetRoll = fmin(targetRoll, MAX_ROLL);
+	}else{
+		targetRoll = 0;
+	}
 
 	float aileronSignal = aileronControl.update(targetRoll, DeadReckoner::getRoll());
 
 	//float rudderSignal = rudderControl.update(targetBearing, DeadReckoner::getBearing());
 	//Constants determined by vibes
-	float rudderSignal = -(1.0/30.0) * bearingDiff;
-	rudderSignal = fmax(rudderSignal, -1);
-	rudderSignal = fmin(rudderSignal, 1);
+	float rudderSignal;
+	if(!unsafeRegime){
+		rudderSignal = -(1.0/30.0) * bearingDiff;
+		rudderSignal = fmax(rudderSignal, -1);
+		rudderSignal = fmin(rudderSignal, 1);
+	}else{
+		rudderSignal = 0;
+	}
 	//float rudderSignal = 0;
 
 	// aircraft specific rudder settings
