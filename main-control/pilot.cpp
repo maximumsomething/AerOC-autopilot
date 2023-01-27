@@ -31,16 +31,16 @@ constexpr float MIN_SAFE_AIRSPEED = 4;
 constexpr float AIRSPEED_CORRECTION_START = 6;
 constexpr float AIRSPEED_CORRECTION_FACTOR = 30 / (AIRSPEED_CORRECTION_START - MIN_SAFE_AIRSPEED); // degrees per (m/s)
 
-constexpr float MAX_CLIMB_RATE = 1.5; // conservative
+constexpr float TOP_SPEED = 12; // Theoretical top airspeed used for calculating throttle
+
+constexpr float MAX_CLIMB_RATE = 2.5; // Maximum vertical speed the autopilot will try for
 
 constexpr float MIN_PITCH = -30; // degrees
 constexpr float MAX_PITCH = 30; // degrees
 
 constexpr float MAX_ROLL = 30;
 
-constexpr float SAFETY_MARGIN = 1.2; //the ammount that we can exceed max roll or pitch by before entering recovery mode
-
-constexpr float TOP_SPEED = 12; // Theoretical top airspeed used for calculating throttle
+constexpr float SAFETY_MARGIN = 1.5; //the ammount that we can exceed max roll or pitch by before entering recovery mode
 
 constexpr bool TEST_MODE = false; //Test mode, disables throttle if true
 //#define NO_PILOT_START // Defined when there is no way of knowing when the autopilot starts
@@ -131,11 +131,11 @@ void pilotStart() {
 
 // calculate target vertical speed from target elevation
 // piecewise linear function:
-// if within 2 meters of the desired elevation, 0
-// For the next 3 meters of error, go from 0 to (max climb rate) of desired vertical speed
+// if within 4 meters of the desired elevation, 0
+// For the next 8 meters of error, go from 0 to (max climb rate) of desired vertical speed
 float calcTargetVertSpeed() {
-	constexpr float ELEVATION_DEADZONE = 2;
-	constexpr float ELEVATION_MAX_DIFF = 5;
+	constexpr float ELEVATION_DEADZONE = 4;
+	constexpr float ELEVATION_MAX_DIFF = 8;
 	float err = DeadReckoner::getAltitude() - targetAltitude;
 	if (fabs(err) < ELEVATION_DEADZONE) return 0;
 	else {
@@ -151,9 +151,11 @@ float calcTargetVertSpeed() {
 // PID classes
 // the correct constant is on the order of magnitude of 1, so why not just have it be 1?
 //kpid rollControl(MAX_ROLL * -1, MAX_ROLL, 0, 1, 0, 0);
+// The integral term here is just a quarter of the elevator integral term
 kpid aileronControl(-1, 1, 0, 1.0/30.0, .25 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0, 0.1);
-// todo: figure out constants better
-kpid pitchControl(MIN_PITCH, MAX_PITCH, 0, MAX_PITCH / MAX_CLIMB_RATE * 0.5, 0, 0, 10);
+// Want to reach an integral term of 10 degrees within 3 seconds
+kpid pitchControl(MIN_PITCH, MAX_PITCH, 0, MAX_PITCH / MAX_CLIMB_RATE * 0.5,
+				  1.0 / ((MAX_CLIMB_RATE/MAX_PITCH * 10) * 3.0 * (1.0 / 2.0)), 0, 10);
 // kp: estimated by manual pilot
 // ki: We want to reach an integral term of 1/3 within 2 seconds
 // ends up being: 1 / ((1/2) * seconds * desiredTerm * (1/kp))
@@ -176,13 +178,16 @@ void pilotLoop() {
 
 	float airspeed = airspeedCalc::airspeed;
 
-	if((fabs(DeadReckoner::getRoll()) > MAX_ROLL * SAFETY_MARGIN || DeadReckoner::getPitch() < MIN_PITCH * SAFETY_MARGIN) || 
-	(!(airspeed == 0 || isnanf(airspeed)) && airspeed < MIN_SAFE_AIRSPEED)) {
+	if((fabs(DeadReckoner::getRoll()) > MAX_ROLL * SAFETY_MARGIN
+		|| DeadReckoner::getPitch() < MIN_PITCH * SAFETY_MARGIN)
+		|| (airspeed != 0 && airspeed < MIN_SAFE_AIRSPEED / SAFETY_MARGIN)) {
 		if (!unsafeRegime) telem_strmessage("WARNING: UNSAFE FLIGHT REGIME");
 		unsafeRegime = true;
 	}
-	if(unsafeRegime && ((fabs(DeadReckoner::getRoll()) < MAX_ROLL/SAFETY_MARGIN || DeadReckoner::getPitch() > MIN_PITCH / SAFETY_MARGIN) || 
-	(!(airspeed == 0 || isnanf(airspeed)) && airspeed > MIN_SAFE_AIRSPEED))){
+	if(unsafeRegime &&
+		fabs(DeadReckoner::getRoll()) < MAX_ROLL
+		&& DeadReckoner::getPitch() > MIN_PITCH
+		&& ((airspeed == 0 || isnanf(airspeed)) || airspeed > MIN_SAFE_AIRSPEED)){
 		unsafeRegime = false;
 	}
 
@@ -193,13 +198,13 @@ void pilotLoop() {
 	// (PI loop) - something
 	// figure out the PI coefficients later
 	float targetPitch = -pitchControl.update(targetVertSpeed, DeadReckoner::getVerticalSpeed());
-	if (airspeed < AIRSPEED_CORRECTION_START && !TEST_MODE) {
+	if (airspeed != 0 && airspeed < AIRSPEED_CORRECTION_START && !TEST_MODE) {
 		targetPitch -= AIRSPEED_CORRECTION_FACTOR * (AIRSPEED_CORRECTION_START - airspeed);
 	}
 	if (targetPitch < MIN_PITCH) targetPitch = MIN_PITCH;
 
 	// ignore all of the above
-	targetPitch = 5;
+	// targetPitch = 5;
 
 	// control elevators to set pitch
 	float elevatorSignal = -elevatorControl.update(targetPitch, DeadReckoner::getPitch());
