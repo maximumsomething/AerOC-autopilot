@@ -10,26 +10,6 @@
 #include <i2c_device.h>
 #include <imx_rt1060/imx_rt1060_i2c_driver.h>
 
-float baromAltitude;
-
-
-void setupAllComms() {
-	usbSerialSetup();
-	telemSerialSetup();
-	i2cSetup();
-	//i2cScan();
-	imuSetup();
-	//altimeterSetup();
-	airspeedCalc::airspeedSetup();
-	// status LED
-	pinMode(13, OUTPUT);
-
-	// Pin for autopilot enabled signal
-	//pinMode(RELAY_PIN, INPUT_PULLUP);
-
-	// so there isn't a big queue of imu values
-	bumpImu();
-}
 
 void usbSerialSetup() {
 	Serial.begin(115200);
@@ -111,7 +91,7 @@ extern "C" {
 #include "util/inv_mpu.h"
 }
 
-MPU9250_DMP imu;
+static MPU9250_DMP imu;
 
 inv_error_t MPU9250_DMP::dmpSetAccelBias(long * bias) {
 	return dmp_set_accel_bias(bias);
@@ -212,13 +192,15 @@ void printGyroBiases() {
 	Serial.printf("gyro bias: x: %d y: %d z: %d\n", bias[0], bias[1], bias[2]);
 }*/
 
+float baromAltitude;
+
 #include <bmp3_defs.h>
 #include <bmp3.h>
 #include <bmp2_defs.h>
 #include <bmp2.h>
 
-struct bmp3_dev bmpdev;
-struct bmp3_settings bmpsettings = { 0 };
+static struct bmp3_dev bmpdev;
+static struct bmp3_settings bmpsettings = { 0 };
 
 // Stuff that uses the Gemmell teensy-specific i2c library
 namespace BmpFuncsGemmell {
@@ -333,7 +315,7 @@ namespace BmpFuncs {
 
 // code adapted from BMP3-Sensor-API example code
 
-void bmp3_check_rslt(const char api_name[], int8_t rslt)
+static void bmp3_check_rslt(const char api_name[], int8_t rslt)
 {
     switch (rslt)
     {
@@ -368,7 +350,7 @@ void bmp3_check_rslt(const char api_name[], int8_t rslt)
     }
 }
 
-BMP3_INTF_RET_TYPE bmp3_interface_init(struct bmp3_dev *bmp3, uint8_t intf) {
+static BMP3_INTF_RET_TYPE bmp3_interface_init(struct bmp3_dev *bmp3, uint8_t intf) {
     int8_t rslt = BMP3_OK;
 
     if (bmp3 != NULL) {
@@ -437,10 +419,10 @@ void bmp390Setup() {
 	Serial.printf("Barometer setup timing: iface %d, init %d, settings %d, op_mode %d\n", ifaceInitDone - startTime, initDone - ifaceInitDone, settingsDone - initDone, modeSet - settingsDone);
 }
 
-int altimeterResets = 0;
-int altimeterBadTicks = 0;
+static int altimeterResets = 0;
+static int altimeterBadTicks = 0;
 
-void gotPressure(float pascals, float temperature) {
+static void gotPressure(float pascals, float temperature) {
 	float atmospheric = pascals / 100.0F;
 	baromAltitude = 44330.0 * (1.0 - pow(atmospheric / 1013.25, 0.1903));
 	telem_pressureTemp(atmospheric, temperature, baromAltitude);
@@ -518,7 +500,7 @@ void readBmp390() {
 /*!
  *  @brief Prints the execution status of the APIs.
  */
-void bmp2_error_codes_print_result(const char api_name[], int8_t rslt)
+static void bmp2_error_codes_print_result(const char api_name[], int8_t rslt)
 {
     if (rslt != BMP2_OK)
     {
@@ -562,7 +544,7 @@ void bmp2_error_codes_print_result(const char api_name[], int8_t rslt)
     }
 }
 
-int8_t bmp2_interface_selection(struct bmp2_dev *dev)
+static int8_t bmp2_interface_selection(struct bmp2_dev *dev)
 {
     int8_t rslt = BMP2_OK;
 
@@ -587,7 +569,7 @@ int8_t bmp2_interface_selection(struct bmp2_dev *dev)
     return rslt;
 }
 
-struct bmp2_dev bmp2;
+static struct bmp2_dev bmp2;
 
 void bmp280Setup() {
 	int8_t rslt;

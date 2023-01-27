@@ -8,6 +8,24 @@
 #include <PWMServo.h>
 
 
+// utility functions. Maybe put these in their own file at some point
+
+float signf(float num) {
+	if (num > 0) return 1;
+	if (num < 0) return -1;
+	return 0;
+}
+
+// returns a value of s - t between -180 and 180 degrees.
+float angleDiff(float s, float t) {
+	float diff = fmod(s - t, 360);
+	if (diff < -180) diff += 360;
+	if (diff > 180) diff -= 360;
+	return diff;
+}
+
+namespace Pilot {
+
 // constants dependent on the aircraft
 constexpr float MIN_SAFE_AIRSPEED = 4;
 constexpr float AIRSPEED_CORRECTION_START = 6;
@@ -35,22 +53,6 @@ float targetAltitude = 0;
 float targetBearing = 180;
 
 bool unsafeRegime = false; //enabled if max pitch or roll is exceeded by the safety margin, disables setTargetBearing() and sets target pitch to _
-
-// utility functions. Maybe put these in their own file at some point
-
-float signf(float num) {
-	if (num > 0) return 1;
-	if (num < 0) return -1;
-	return 0;
-}
-
-// returns a value of s - t between -180 and 180 degrees.
-float angleDiff(float s, float t) {
-	float diff = fmod(s - t, 360);
-	if (diff < -180) diff += 360;
-	if (diff > 180) diff -= 360;
-	return diff;
-}
 
 class kpid {
 	public:
@@ -254,4 +256,6 @@ void pilotLoop() {
 	if(!TEST_MODE) throttleServo.write(throttleSignal);
 	else throttleServo.write(0);
 	rudderServo.write((rudderSignal * 90) + 90);
+}
+
 }

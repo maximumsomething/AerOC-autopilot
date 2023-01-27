@@ -13,7 +13,7 @@ HardwareSerial* telem_serial = &Serial1;
 Print* telem_save_stream = &Serial;
 
 
-void sdfatDateTime(uint16_t* date, uint16_t* time) {
+static void sdfatDateTime(uint16_t* date, uint16_t* time) {
 
   // return date using FAT_DATE macro to format fields
   *date = FAT_DATE(year(), month(), day());
@@ -22,8 +22,8 @@ void sdfatDateTime(uint16_t* date, uint16_t* time) {
   *time = FAT_TIME(hour(), minute(), second());
 }
 
-SdFat32 sd;
-File32 sdFile;
+static SdFat32 sd;
+static File32 sdFile;
 //FilePrintStream logFileStream(&sdFile);
 #define TELEM_SAVE_DIR "aeroc_pilot_telem"
 
@@ -76,12 +76,12 @@ void print_telem_timestamp() {
 	telem_save_stream->printf("%02d:%02d:%02d.%04d ", hour(), minute(), second(), curMillis % 1000);
 }
 
-int32_t pauseEndMillis = -10000;
+static int32_t pauseEndMillis = -10000;
 constexpr int NACK_PAUSE_TIME = 200; // milliseconds to pause for resynchronization
 constexpr int ACK_TIMEOUT = 200;
-uint8_t telem_seq = 0; // overflows from 255 to 1 (zero is error)
-int32_t lastMsgMillis = 0;
-int32_t lastAckMillis = 0;
+static uint8_t telem_seq = 0; // overflows from 255 to 1 (zero is error)
+static int32_t lastMsgMillis = 0;
+static int32_t lastAckMillis = 0;
 
 
 // message queue is a linked list
@@ -92,14 +92,14 @@ struct MessageNode {
 	void* contents = nullptr;
 };
 // Contains one node for each message type
-MessageNode queuedMessages[telem_num_ids];
+static MessageNode queuedMessages[telem_num_ids];
 
-MessageNode* getQueuedMessage(enum telem_id id) {
+static MessageNode* getQueuedMessage(enum telem_id id) {
 	assert(id > 0 && id <= telem_num_ids);
 	return &queuedMessages[id - 1];
 }
 
-MessageNode* queueHead = nullptr, *queueTail = nullptr;
+static MessageNode* queueHead = nullptr, *queueTail = nullptr;
 
 struct PriorityMessage {
 	uint8_t id;
@@ -108,12 +108,12 @@ struct PriorityMessage {
 	int transmitTime;
 	char contents[];
 };
-std::vector<PriorityMessage *> priorityMessages;
+static std::vector<PriorityMessage *> priorityMessages;
 // keep these around in case we have to retransmit
-std::vector<PriorityMessage *> sentPriorityMessages;
+static std::vector<PriorityMessage *> sentPriorityMessages;
 
 
-void reset_telem() {
+static void reset_telem() {
 	while (telem_serial->available() > 0)
 		Serial.write(telem_serial->read());
 	Serial.println();
@@ -133,7 +133,7 @@ void reset_telem() {
 	lastAckMillis = millis(); // it isn't really, but
 }
 
-void checkAcks() {
+static void checkAcks() {
 	while (telem_serial->available() > 0) {
 		uint8_t ack = telem_serial->read();
 		//Serial.printf("Recieved ack of %d\n", ack);
@@ -175,7 +175,7 @@ void checkAcks() {
 
 // do the actual sending.
 // returns the sequence number.
-uint8_t send_telem_packet(uint8_t id, uint16_t length, const void* data) {
+static uint8_t send_telem_packet(uint8_t id, uint16_t length, const void* data) {
 	++telem_seq;
 	// skip 0
 	if (telem_seq == 255) telem_seq = 1;
@@ -189,7 +189,7 @@ uint8_t send_telem_packet(uint8_t id, uint16_t length, const void* data) {
 	return telem_seq;
 }
 
-bool canSendMessage(int length) {
+static bool canSendMessage(int length) {
 	int curTime = millis();
 	if ((int32_t) curTime < pauseEndMillis) return false;
 	if (length > telem_serial->availableForWrite()) return false;
@@ -203,7 +203,7 @@ bool canSendMessage(int length) {
 	return true;
 }
 
-void sendQueuedMessages() {
+static void sendQueuedMessages() {
 	while (priorityMessages.size() > 0
 	&& canSendMessage(priorityMessages.back()->length)) {
 

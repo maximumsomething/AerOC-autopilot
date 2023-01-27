@@ -146,7 +146,7 @@ namespace GPSNav {
         headingToTarget = currentLoc.BearingToDegrees(targetLoc);
 
 		if(enableGPSNav){
-			setTargetBearing(headingToTarget - bearingError);
+			Pilot::setTargetBearing(headingToTarget - bearingError);
 		}
 	}
 }
