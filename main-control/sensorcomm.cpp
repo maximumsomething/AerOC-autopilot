@@ -25,7 +25,7 @@ void setupAllComms() {
 	pinMode(13, OUTPUT);
 
 	// Pin for autopilot enabled signal
-	pinMode(RELAY_PIN, INPUT_PULLUP);
+	//pinMode(RELAY_PIN, INPUT_PULLUP);
 
 	// so there isn't a big queue of imu values
 	bumpImu();
