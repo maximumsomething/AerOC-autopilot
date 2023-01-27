@@ -2,8 +2,6 @@
 constexpr int RELAY_PIN = 7;
 
 
-void setupAllComms();
-
 void telemSerialSetup();
 void usbSerialSetup();
 void i2cSetup();

@@ -6,11 +6,28 @@
 #include "pilot.h"
 #include "gpsnav.h"
 
+
 void setup() {
-	setupAllComms();
+	usbSerialSetup();
+	telemSerialSetup();
+	i2cSetup();
+	//i2cScan();
+	imuSetup();
+	//altimeterSetup();
+	airspeedCalc::airspeedSetup();
+	// status LED
+	pinMode(13, OUTPUT);
+
+	// Pin for autopilot enabled signal
+	//pinMode(RELAY_PIN, INPUT_PULLUP);
+
 	GPSNav::gpsSetup();
 	setupSdCardTelem();
-	pilotSetup();
+	Pilot::pilotSetup();
+
+	// so there isn't a big queue of imu values
+	bumpImu();
+
 	telem_strmessage("Initialization complete");
 }
 
@@ -35,7 +52,7 @@ void loop() {
 	// Check whether autopilot is enabled
 	bool newAutopilotEnabled = !digitalRead(RELAY_PIN);
 	if (newAutopilotEnabled && !autopilotEnabled) {
-		pilotStart();
+		Pilot::pilotStart();
 		telem_strmessage("AUTOPILOT ENABLED");
 	}
 	else if (!newAutopilotEnabled && autopilotEnabled) {
@@ -87,7 +104,7 @@ void loop() {
 
 	airspeedCalc::readAirspeed();
 
-	pilotLoop();
+	Pilot::pilotLoop();
 	//Serial.println(micros() - startTime);
 	// do at 50 Hz
 	//Serial.println(micros() - startTime);
