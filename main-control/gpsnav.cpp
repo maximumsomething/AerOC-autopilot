@@ -126,7 +126,7 @@ namespace GPSNav {
 		}
 		else {
 			Vector2f offset(DeadReckoner::horizontalX(), DeadReckoner::horizontalY());
-			float inerBearing = atan2(offset.y(), offset.x()) / M_PI * 180.0;
+			float inerBearing = atan2(-offset.y(), offset.x()) / M_PI * 180.0;
 			float compassHeadingDeg = inerBearing + bearingError;
 			float distanceM = offset.norm();
 			//Serial.printf("Pos offset: %f, %f\n", offset.x(), offset.y());

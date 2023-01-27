@@ -177,8 +177,8 @@ void pilotLoop() {
 	float airspeed = airspeedCalc::airspeed;
 
 	if((fabs(DeadReckoner::getRoll()) > MAX_ROLL * SAFETY_MARGIN || DeadReckoner::getPitch() < MIN_PITCH * SAFETY_MARGIN) || 
-	(!(airspeed == 0 || isnanf(airspeed)) && airspeed < MIN_SAFE_AIRSPEED)){
-		telem_strmessage("WARNING: UNSAFE FLIGHT REGIME");
+	(!(airspeed == 0 || isnanf(airspeed)) && airspeed < MIN_SAFE_AIRSPEED)) {
+		if (!unsafeRegime) telem_strmessage("WARNING: UNSAFE FLIGHT REGIME");
 		unsafeRegime = true;
 	}
 	if(unsafeRegime && ((fabs(DeadReckoner::getRoll()) < MAX_ROLL/SAFETY_MARGIN || DeadReckoner::getPitch() > MIN_PITCH / SAFETY_MARGIN) || 
