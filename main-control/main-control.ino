@@ -19,7 +19,7 @@ void setup() {
 	pinMode(13, OUTPUT);
 
 	// Pin for autopilot enabled signal
-	//pinMode(RELAY_PIN, INPUT_PULLUP);
+	pinMode(RELAY_PIN, INPUT_PULLDOWN);
 
 	GPSNav::gpsSetup();
 	setupSdCardTelem();
@@ -28,7 +28,7 @@ void setup() {
 	// so there isn't a big queue of imu values
 	bumpImu();
 
-	telem_strmessage("Initialization complete");
+	telem_strmessage("Initialization complete", true);
 }
 
 // 200Hz
@@ -50,7 +50,8 @@ void loop() {
 
 
 	// Check whether autopilot is enabled
-	bool newAutopilotEnabled = !digitalRead(RELAY_PIN);
+	bool newAutopilotEnabled = digitalRead(RELAY_PIN);
+	//Serial.printf("Autopilot pin: %d\n", newAutopilotEnabled);
 	if (newAutopilotEnabled && !autopilotEnabled) {
 		Pilot::pilotStart();
 		telem_strmessage("AUTOPILOT ENABLED");
@@ -80,7 +81,7 @@ void loop() {
 	if (tickImuReads == 0) {
 		ticksSinceLastImuRead++;
 		if (ticksSinceLastImuRead >= 50) {
-			telem_strmessage("ERROR: reset IMU\n\n\n");
+			telem_strmessage("ERROR: reset IMU\n\n\n", true);
 			DeadReckoner::resetCalibration();
 			imuSetup();
 			ticksSinceLastImuRead = 0;

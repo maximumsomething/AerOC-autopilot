@@ -201,10 +201,9 @@ namespace DeadReckoner {
 	public:
 		ValueType lastVal;
 
-		DriftCorrIntSlow(float fastTimeDelta, float multiplier, float initVal = 0):
+		DriftCorrIntSlow(float fastTimeDelta, float multiplier):
 			fastTimeDelta(fastTimeDelta),
-			multiplier(multiplier),
-			lastVal(initVal) {}
+			multiplier(multiplier) {}
 
 		ValueType newToIntegrate(ValueType toIntegrate) {
 			lastVal += toIntegrate * fastTimeDelta;
@@ -218,12 +217,26 @@ namespace DeadReckoner {
 			//ulong newTime = micros();
 			//ulong timeDiff = newTime = lastNewTarget;
 			//lastNewTarget = newTime;
-
-			ValueType avgSinceLastTarget = sumSinceLastTarget / samplesSinceLastTarget;
-			ValueType error = noisyTarget - avgSinceLastTarget;
-			lastVal += multiplier*error;
+			if (toResetToTarget) {
+				lastVal = noisyTarget;
+				toResetToTarget = false;
+			}
+			else {
+				ValueType avgSinceLastTarget = sumSinceLastTarget / samplesSinceLastTarget;
+				if (!isnanf(avgSinceLastTarget)) {
+					ValueType error = noisyTarget - avgSinceLastTarget;
+					lastVal += multiplier*error;
+				}
+				sumSinceLastTarget = 0;
+				samplesSinceLastTarget = 0;
+			}
 			return lastVal;
 		}
+		void resetToTarget() {
+			toResetToTarget = true;
+		}
+	private:
+		bool toResetToTarget = true;
 	};
 
 
@@ -322,12 +335,20 @@ namespace DeadReckoner {
 
 			// reset vertical drift
 			verticalSpeedCalculator.lastVal = 0;
+#ifdef NO_BAROM_ALTITUDE
+			altitudeCalculator.resetToTarget();
+#else
 			altitudeCalculator.lastVal = getBaromAltitude();
+#endif
 
 		// //}
 		if (!downCalibrated) {
-			Serial.printf("***Calibrated down: calibratedG=%f, angleFromDown=%f\n\n\n", calibratedG, angleFromDown.angularDistance(Quaternionf::Identity()) * 180 / M_PI);
-			telem_strmessage("Calibration complete");
+			char format[] = "***Calibrated down: calibratedG=%f, angleFromDown=%f\n\n\n";
+			float angle = angleFromDown.angularDistance(Quaternionf::Identity()) * 180 / M_PI;
+			size_t needed = snprintf(nullptr, 0, format, calibratedG, angle);
+			char msg[needed];
+			sprintf(msg, format, calibratedG, angle);
+			telem_strmessage(msg, true);
 
 			// light up onboard LED when calibrated
 			digitalWrite(13, HIGH);

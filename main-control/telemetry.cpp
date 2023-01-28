@@ -87,8 +87,9 @@ static int32_t lastAckMillis = 0;
 // message queue is a linked list
 struct MessageNode {
 	MessageNode* older = nullptr, *newer = nullptr;
-	uint8_t id;
-	uint16_t length;
+	uint8_t id = 0;
+	bool heapAllocated = false; // if true, contents must be freed and this object must be deleted when sent.
+	uint16_t length = 0;
 	void* contents = nullptr;
 };
 // Contains one node for each message type
@@ -236,18 +237,25 @@ static void sendQueuedMessages() {
 		}
 		queueHead = msg->newer;
 		if (queueHead) queueHead->older = nullptr;
-		msg->older = nullptr; msg->newer = nullptr;
+		if (msg->heapAllocated) {
+			free(msg->contents);
+			delete msg;
+		}
+		else {
+			// mark the message as not in the queue.
+			msg->older = nullptr; msg->newer = nullptr;
+		}
 	}
 }
 
-void dispatch_telem_packet(uint8_t id, uint16_t length, const void* data) {
+void dispatch_telem_packet(uint8_t id, uint16_t length, const void* data, bool priority) {
 	//Serial.printf("queue %d\n", id);
 	// Every time we enter telemetry code, check to make sure we're keeping up
 	checkAcks();
 
-	// todo: have a way to make priority messages other than checking the type here
-	if (id == telem_id_special_strmessage) {
+	if (priority) {
 		// add to the priority messages
+		// priority messages always need to be heap-allocated
 		// must use malloc instead of new here because of the variable-length member
 		PriorityMessage* msg = (PriorityMessage*) malloc(sizeof(PriorityMessage) + length);
 		msg->id = id;
@@ -257,8 +265,17 @@ void dispatch_telem_packet(uint8_t id, uint16_t length, const void* data) {
 	}
 	else {
 
+		MessageNode* node;
+		if (id == telem_id_special_strmessage) {
+			// String messages get heap-allocated nodes instead of nodes in the per-type array
+			node = new MessageNode();
+			node->heapAllocated = true;
+		}
+		else {
+			node = getQueuedMessage((telem_id) id);
+		}
+
 		// enqueue packet, replacing any previously queued packet of this message type
-		MessageNode* node = getQueuedMessage((telem_id) id);
 
 		// if the node is not already in the queue
 		if (node->newer == nullptr && node->older == nullptr) {
@@ -281,9 +298,9 @@ void dispatch_telem_packet(uint8_t id, uint16_t length, const void* data) {
 	sendQueuedMessages();
 }
 
-void telem_strmessage(const char* string) {
+void telem_strmessage(const char* string, bool priority) {
 	print_telem_timestamp();
 	telem_save_stream->print("strmessage: ");
 	telem_save_stream->println(string);
-	dispatch_telem_packet(telem_id_special_strmessage, (uint16_t) strlen(string), (const void*) string);
+	dispatch_telem_packet(telem_id_special_strmessage, (uint16_t) strlen(string), (const void*) string, priority);
 }
