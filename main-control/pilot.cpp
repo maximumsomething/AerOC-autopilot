@@ -4,6 +4,7 @@
 #include "sensorcomm.h"
 #include "telemetry.h"
 #include "gpsnav.h"
+#include "telemetry_autogen.h"
 #include <cmath>
 #include <PWMServo.h>
 
@@ -48,7 +49,7 @@ constexpr bool TEST_MODE = false; //Test mode, disables throttle if true
 // in theory could be set dynamically, but are constants right now
 float targetSpeed = 8;
 // set when autopilot is enabled. Unused if NO_PILOT_START.
-float targetAltitude = 0;
+float targetAltitude = 360;
 // set when the autopilot is enabled.
 float targetBearing = 180;
 
@@ -124,7 +125,7 @@ void pilotSetup() {
 }
 
 void pilotStart() {
-	targetAltitude = DeadReckoner::getAltitude();
+	//targetAltitude = DeadReckoner::getAltitude();
 	//targetBearing = DeadReckoner::getBearing();
 }
 
@@ -181,13 +182,14 @@ void pilotLoop() {
 	if((fabs(DeadReckoner::getRoll()) > MAX_ROLL * SAFETY_MARGIN
 		|| DeadReckoner::getPitch() < MIN_PITCH * SAFETY_MARGIN)
 		|| (airspeed != 0 && airspeed < MIN_SAFE_AIRSPEED / SAFETY_MARGIN)) {
-		if (!unsafeRegime) telem_strmessage("WARNING: UNSAFE FLIGHT REGIME");
+		if (!unsafeRegime) telem_warningFlightRegime(unsafeRegime);
 		unsafeRegime = true;
 	}
 	if(unsafeRegime &&
 		fabs(DeadReckoner::getRoll()) < MAX_ROLL
 		&& DeadReckoner::getPitch() > MIN_PITCH
 		&& ((airspeed == 0 || isnanf(airspeed)) || airspeed > MIN_SAFE_AIRSPEED)){
+		if (unsafeRegime) telem_warningFlightRegime(unsafeRegime);
 		unsafeRegime = false;
 	}
 
