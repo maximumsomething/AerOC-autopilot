@@ -7,4 +7,5 @@ namespace Pilot {
 }
 
 // returns a value of s - t between -180 and 180 degrees.
+float normAngle(float x);
 float angleDiff(float s, float t);
