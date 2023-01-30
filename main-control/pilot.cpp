@@ -38,7 +38,8 @@ constexpr float AIRSPEED_CORRECTION_FACTOR = 30 / (AIRSPEED_CORRECTION_START - M
 
 constexpr float TOP_SPEED = 12; // Theoretical top airspeed used for calculating throttle
 
-constexpr float MAX_CLIMB_RATE = 2.5; // Maximum vertical speed the autopilot will try for
+constexpr float MAX_CLIMB_RATE = 3.5; // Maximum vertical speed the autopilot will try for
+constexpr float STANDARD_CLIMB_RATE = 2; // Reasonable vertical speed that some parameters are calculated from
 
 constexpr float MIN_PITCH = -30; // degrees
 constexpr float MAX_PITCH = 30; // degrees
@@ -168,9 +169,14 @@ float calcTargetVertSpeed() {
 //kpid rollControl(MAX_ROLL * -1, MAX_ROLL, 0, 1, 0, 0);
 // The integral term here is just a quarter of the elevator integral term
 kpid aileronControl(-1, 1, 0, 1.0/30.0, .25 / ((30.0 * (1.0/3.0)) * 2.0 / 2.0), 0, 0.1);
-// Want to reach an integral term of 10 degrees within 3 seconds
-kpid pitchControl(MIN_PITCH, MAX_PITCH, 0, MAX_PITCH / MAX_CLIMB_RATE * 0.5,
-				  1.0 / ((MAX_CLIMB_RATE/MAX_PITCH * 10) * 3.0 * (1.0 / 2.0)), 0, 10);
+
+kpid pitchControl(MIN_PITCH, MAX_PITCH,
+				  // Keep the feed-forward term small because we don't know very well what it should be
+				  MAX_PITCH / STANDARD_CLIMB_RATE * 0.15,
+				  // Keep the proportional term also kinda small because the integral term is doing most of the work
+				  MAX_PITCH / STANDARD_CLIMB_RATE * 0.5,
+				  // Want to reach an integral term of 20 degrees within 3 seconds
+				  1.0 / ((STANDARD_CLIMB_RATE/MAX_PITCH * 20) * 3.0 * (1.0 / 2.0)), 0, 20);
 // kp: estimated by manual pilot
 // ki: We want to reach an integral term of 1/3 within 2 seconds
 // ends up being: 1 / ((1/2) * seconds * desiredTerm * (1/kp))
