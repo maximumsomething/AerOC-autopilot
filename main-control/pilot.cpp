@@ -43,6 +43,7 @@ constexpr float STANDARD_CLIMB_RATE = 2; // Reasonable vertical speed that some 
 
 constexpr float MIN_PITCH = -30; // degrees
 constexpr float MAX_PITCH = 30; // degrees
+constexpr float DEFAULT_PITCH = 5; // Target pitch when altitude control is disabled
 
 constexpr float MAX_ROLL = 30;
 
@@ -59,13 +60,9 @@ constexpr float DIRECTION_STICKY_MARGIN = 20; // If we are within this angle of 
 constexpr bool TEST_MODE = false; //Test mode, disables throttle if true
 //#define NO_PILOT_START // Defined when there is no way of knowing when the autopilot starts
 
-// in theory could be set dynamically, but are constants right now
-float targetSpeed = 8;
-// set when autopilot is enabled. Unused if NO_PILOT_START.
-float targetAltitude = 360;
 
-// set when the autopilot is enabled.
-float targetBearing = 180;
+targets_t targets;
+
 
 bool unsafeRegime = false; //enabled if max pitch or roll is exceeded by the safety margin, disables setTargetBearing() and sets target pitch to _
 float prevBearingDiff = 0; // Used for direction stickiness
@@ -140,8 +137,8 @@ void pilotSetup() {
 }
 
 void pilotStart() {
-	//targetAltitude = DeadReckoner::getAltitude();
-	//targetBearing = DeadReckoner::getBearing();
+	//targets.altitude = DeadReckoner::getAltitude();
+	//targets.bearing = DeadReckoner::getBearing();
 }
 
 
@@ -152,7 +149,7 @@ void pilotStart() {
 float calcTargetVertSpeed() {
 	constexpr float ELEVATION_DEADZONE = 4;
 	constexpr float ELEVATION_MAX_DIFF = 8;
-	float err = DeadReckoner::getAltitude() - targetAltitude;
+	float err = DeadReckoner::getAltitude() - targets.altitude;
 	if (fabs(err) < ELEVATION_DEADZONE) return 0;
 	else {
 		float amount = (fabs(err) - ELEVATION_DEADZONE) / (ELEVATION_MAX_DIFF - ELEVATION_DEADZONE);
@@ -185,101 +182,100 @@ kpid elevatorControl(-1, 1, 0, 1.0/30.0, 1.0 / ((30.0 * (1.0/3.0)) * 2.0 * (1.0 
 kpid throttleControl(0, 1, 1 / TOP_SPEED, -0.7 / TOP_SPEED, 0, 0);
 //Constants determined by vibes
 
-void setTargetBearing(float target){
-		targetBearing = normAngle(target);
-}
-
 void pilotLoop() {
 
+	float airspeed = airspeedCalc::getAirspeed();
+
+	float targetPitch = DEFAULT_PITCH;
+	float targetVertSpeed = NAN;
+	if (!isnanf(targets.altitude)) {
+
 #ifdef NO_PILOT_START
-	constexpr float targetVertSpeed = 0;
+		targetVertSpeed = 0;
 #else
-	const float targetVertSpeed = calcTargetVertSpeed();
+		targetVertSpeed = calcTargetVertSpeed();
 #endif
+		if((fabs(DeadReckoner::getRoll()) > MAX_ROLL * SAFETY_MARGIN
+			|| DeadReckoner::getPitch() < MIN_PITCH * SAFETY_MARGIN)
+			|| (airspeed != 0 && airspeed < MIN_SAFE_AIRSPEED / SAFETY_MARGIN)) {
+			if (!unsafeRegime) telem_warningFlightRegime(unsafeRegime);
+			unsafeRegime = true;
+		}
+		if(unsafeRegime &&
+			fabs(DeadReckoner::getRoll()) < MAX_ROLL
+			&& DeadReckoner::getPitch() > MIN_PITCH
+			&& ((airspeed == 0 || isnanf(airspeed)) || airspeed > MIN_SAFE_AIRSPEED)){
+			if (unsafeRegime) telem_warningFlightRegime(unsafeRegime);
+			unsafeRegime = false;
+		}
 
-	float airspeed = airspeedCalc::airspeed;
-
-	if((fabs(DeadReckoner::getRoll()) > MAX_ROLL * SAFETY_MARGIN
-		|| DeadReckoner::getPitch() < MIN_PITCH * SAFETY_MARGIN)
-		|| (airspeed != 0 && airspeed < MIN_SAFE_AIRSPEED / SAFETY_MARGIN)) {
-		if (!unsafeRegime) telem_warningFlightRegime(unsafeRegime);
-		unsafeRegime = true;
+		// calculate desired pitch from target vertical speed and current airspeed
+		// if (current airspeed - safe airspeed) < val then calculate something from (current airspeed - safe airspeed)
+		// (PI loop) - something
+		// figure out the PI coefficients later
+		targetPitch = -pitchControl.update(targetVertSpeed, DeadReckoner::getVerticalSpeed());
+		if (airspeed != 0 && airspeed < AIRSPEED_CORRECTION_START && !TEST_MODE) {
+			targetPitch -= AIRSPEED_CORRECTION_FACTOR * (AIRSPEED_CORRECTION_START - airspeed);
+		}
+		if (targetPitch < MIN_PITCH) targetPitch = MIN_PITCH;
 	}
-	if(unsafeRegime &&
-		fabs(DeadReckoner::getRoll()) < MAX_ROLL
-		&& DeadReckoner::getPitch() > MIN_PITCH
-		&& ((airspeed == 0 || isnanf(airspeed)) || airspeed > MIN_SAFE_AIRSPEED)){
-		if (unsafeRegime) telem_warningFlightRegime(unsafeRegime);
-		unsafeRegime = false;
-	}
-
-	//Get bearing to target GPS location from GPSNav
-
-	// calculate desired pitch from target vertical speed and current airspeed
-	// if (current airspeed - safe airspeed) < val then calculate something from (current airspeed - safe airspeed)
-	// (PI loop) - something
-	// figure out the PI coefficients later
-	float targetPitch = -pitchControl.update(targetVertSpeed, DeadReckoner::getVerticalSpeed());
-	if (airspeed != 0 && airspeed < AIRSPEED_CORRECTION_START && !TEST_MODE) {
-		targetPitch -= AIRSPEED_CORRECTION_FACTOR * (AIRSPEED_CORRECTION_START - airspeed);
-	}
-	if (targetPitch < MIN_PITCH) targetPitch = MIN_PITCH;
-
-	// ignore all of the above
-	// targetPitch = 5;
 
 	// control elevators to set pitch
 	float elevatorSignal = -elevatorControl.update(targetPitch, DeadReckoner::getPitch());
 
-	// control throttle to set airspeed
-	float throttleSignal = throttleControl.update(targetSpeed, airspeed);
-	if (airspeed == 0 || isnanf(airspeed)) throttleSignal = 0.6;
-	
-	// control aileron to set roll
-	//float targetRoll = rollControl.update(targetBearing, DeadReckoner::getBearing());
-	// Calculate the angular difference from the target (from -180 to 180)
-	float bearingDiff = angleDiff(DeadReckoner::getBearing(), targetBearing);
-
-	// If we crossed the 180 degree line, don't. Instead, just make bearingDiff go outside of the -180 to 180 range.
-	if (fabs(bearingDiff) > 180 - DIRECTION_STICKY_MARGIN
-		&& signf(bearingDiff) != signf(prevBearingDiff)) {
-
-		if (bearingDiff > 0) bearingDiff -= 360;
-		else bearingDiff += 360;
+	float throttleSignal = 0.6;
+	if (airspeed != 0 && !isnanf(airspeed) && !isnanf(targets.airspeed)) {
+		// control throttle to set airspeed
+		throttleSignal = throttleControl.update(targets.airspeed, airspeed);
 	}
-	prevBearingDiff = bearingDiff;
+	
+	float targetRoll = 0;
+	float rudderSignal = 0;
+	if (!isnanf(targets.bearing)) {
+		// control aileron to set roll
+		// Calculate the angular difference from the target (from -180 to 180)
+		float bearingDiff = angleDiff(DeadReckoner::getBearing(), targets.bearing);
 
-	// don't use kpid class, because we don't need i and d terms and we have a difference not a target and input
-	// the correct kP is on the order of magnitude of 1, so why not just have it be 1?
-	float targetRoll;
-	if(!unsafeRegime){
-		targetRoll = -1 * bearingDiff;
-		targetRoll = fmax(targetRoll, -MAX_ROLL);
-		targetRoll = fmin(targetRoll, MAX_ROLL);
-	}else{
-		targetRoll = 0;
+		// If we crossed the 180 degree line, don't. Instead, just make bearingDiff go outside of the -180 to 180 range.
+		if (fabs(bearingDiff) > 180 - DIRECTION_STICKY_MARGIN
+			&& signf(bearingDiff) != signf(prevBearingDiff)) {
+
+			if (bearingDiff > 0) bearingDiff -= 360;
+			else bearingDiff += 360;
+		}
+		prevBearingDiff = bearingDiff;
+
+
+		// don't use kpid class, because we don't need i and d terms and we have a difference not a target and input
+		// the correct kP is on the order of magnitude of 1, so why not just have it be 1?
+		if(!unsafeRegime){
+			targetRoll = -1 * bearingDiff;
+			targetRoll = fmax(targetRoll, -MAX_ROLL);
+			targetRoll = fmin(targetRoll, MAX_ROLL);
+		}else{
+			targetRoll = 0;
+		}
+
+		//Constants determined by vibes
+		if(!unsafeRegime){
+			rudderSignal = -(1.0/30.0) * bearingDiff;
+			rudderSignal = fmax(rudderSignal, -1);
+			rudderSignal = fmin(rudderSignal, 1);
+		} else {
+			rudderSignal = 0;
+		}
 	}
 
 	float aileronSignal = aileronControl.update(targetRoll, DeadReckoner::getRoll());
 
-	//float rudderSignal = rudderControl.update(targetBearing, DeadReckoner::getBearing());
-	//Constants determined by vibes
-	float rudderSignal;
-	if(!unsafeRegime){
-		rudderSignal = -(1.0/30.0) * bearingDiff;
-		rudderSignal = fmax(rudderSignal, -1);
-		rudderSignal = fmin(rudderSignal, 1);
-	}else{
-		rudderSignal = 0;
-	}
-
 	//if (millis() - pilotLastPrintTime >= 200) {
-		telem_controlOut(targetVertSpeed, targetAltitude, targetPitch, targetRoll, targetBearing, throttleSignal, elevatorSignal, aileronSignal, rudderSignal);
+		telem_controlOut(targetVertSpeed, targets.altitude, targetPitch, targetRoll, targets.bearing, throttleSignal, elevatorSignal, aileronSignal, rudderSignal);
 		//pilotLastPrintTime = millis();
 	//}
 
 	if(unsafeRegime && DeadReckoner::getPitch() < MIN_PITCH * 2){
 		aileronSignal = 0;
+		rudderSignal = 0;
 	}
 
 	// Translate control outputs from -1 to 1 to the degree values that PWMServo expects

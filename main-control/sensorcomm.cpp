@@ -770,6 +770,9 @@ namespace airspeedCalc {
 
 
 		airspeed = sqrt(2*fabs(avgPressureDiff)/AIR_DENSITY);
-		//telem_airspeed(airspeed, avgPressureDiff);
+
+		telem_airspeed(airspeed, avgPressureDiff);
 	}
+
+	float getAirspeed() { return airspeed; }
 }

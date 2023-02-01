@@ -25,10 +25,10 @@ void altimeterSetup();
 void readAltimeter();
 
 namespace airspeedCalc{
-extern float airspeed;
-extern float avgPressureDiff;
-void airspeedSetup();
-void readAirspeed();
+
+	float getAirspeed();
+	void airspeedSetup();
+	void readAirspeed();
 };
 
 float getBaromAltitude();

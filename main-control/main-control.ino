@@ -34,7 +34,7 @@ void setup() {
 // 200Hz
 constexpr int loopInterval = 20000; // microseconds
 
-int lastPrintTime = 0;
+//int lastPrintTime = 0;
 int loopCounter = 0;
 
 int totalImuReads = 0;
@@ -121,10 +121,9 @@ void loop() {
 	//if (startTime > lastPrintTime + 200000) {
 		if (tickImuReads > 0) {
 			DeadReckoner::printData();
-			lastPrintTime = startTime;
+			//lastPrintTime = startTime;
 			//Serial.printf("ax=%f, ay=%f, az=%f; ", imuData.accelx, imuData.accely, imuData.accelz);
 			//Serial.printf("gx=%f, gy=%f, gz=%f\n", imuData.gyrox, imuData.gyroy, imuData.gyroz);
-			telem_airspeed(airspeedCalc::airspeed, airspeedCalc::avgPressureDiff);
 		}
 	//}
 	int endTime = micros();
