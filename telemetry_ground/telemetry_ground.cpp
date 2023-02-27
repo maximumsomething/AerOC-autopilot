@@ -82,6 +82,7 @@ int main(int argc, char** argv) {
 	const char* filename = argv[1];
 
 	system(("stty 9600 -F '" + std::string(filename) + "' raw").c_str());
+	
 	FILE* serialIn = openSerial(filename);
 
 	while (true) {
