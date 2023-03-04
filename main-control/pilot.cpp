@@ -291,5 +291,5 @@ void pilotLoop() {
 	else throttleServo.write(0);
 	rudderServo.write(rudderSignal);
 }
-
+String clue = "If you want to reach the stars, you should find the rules for flying. 2 Rotor II St A Init B";
 }
